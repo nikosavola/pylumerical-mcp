@@ -28,6 +28,7 @@ the helpers seeded by :mod:`ansys.lumerical.mcp.startup_code`.
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Annotated, Any, Literal, Optional
 
@@ -54,6 +55,43 @@ logger = logging.getLogger(__name__)
 # well under a second; the timeout exists to surface a clean failure when
 # the subprocess is wedged so the agent can dispatch ``restart_session``.
 _CLOSE_SESSION_TIMEOUT_S = 30.0
+
+
+# Two *separate* dedicated thread pools -- deliberately not
+# ``asyncio.to_thread``'s shared default executor (a ``ThreadPoolExecutor``
+# sized ``min(32, os.cpu_count() + 4)`` that every ``to_thread`` call in the
+# process shares unless overridden).
+#
+# ``LumericalPersistentPythonSession.execute`` serializes all subprocess
+# access behind a single ``threading.Lock`` (``_execution_lock``, set up in
+# the vendored ``PersistentPythonSession.__init__``). If N concurrent
+# ``execute_python_code``/``open_session``/``close_session`` calls arrive and
+# one wedges (infinite loop, stuck license handshake), every other call
+# blocks *inside* ``with self._execution_lock:`` for the full wait -- each
+# burning one worker thread from whichever executor it was submitted to,
+# for as long as the wedge lasts.
+#
+# ``restart_session`` is the documented escape hatch for exactly that
+# situation (see this module's ``restart_session`` docstring and
+# ``persistent_session.py``'s module docstring). Under the hood,
+# ``PersistentPythonSession.restart`` calls ``stop()`` then ``start()``, and
+# ``start()`` re-executes ``startup_code`` via ``self.execute(...)`` -- so
+# ``restart()`` itself must acquire ``_execution_lock``. If a saturated
+# shared executor already has every worker parked waiting on that lock, the
+# ``restart_session`` call queues behind them and never gets a thread to run
+# on: the recovery path is starved by the very calls it exists to unstick.
+#
+# Routing ``restart_session`` through its own single-worker executor
+# guarantees it always has a thread available, independent of how many
+# ``execute_python_code``/``open_session``/``close_session`` calls are
+# currently blocked. Do not merge these back into one pool.
+#
+# Neither pool is explicitly ``shutdown()`` -- ``ThreadPoolExecutor``
+# registers an ``atexit`` handler that joins its workers automatically, and
+# these two live for the lifetime of the process (one MCP server per
+# process), so there's no leak to guard against here.
+_LUMERICAL_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="pylumerical-exec")
+_RESTART_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pylumerical-restart")
 
 
 _TOOL_SET_DEFINITIONS: list[dict[str, Any]] = [
@@ -153,13 +191,18 @@ async def open_session(
         )
 
     snippet = build_open_session_snippet(name, product, filename, effective_hide)
-    # Run the blocking subprocess call on a worker thread so we don't freeze
-    # the FastMCP server's asyncio event loop while waiting for the snippet
-    # to complete (see ``LumericalPersistentPythonSession.execute``'s
-    # synchronous polling loop). The existing ``threading.Lock`` inside
-    # ``execute`` still serializes access to the single subprocess; this
-    # change only moves the *waiting* off the event loop.
-    raw = await asyncio.to_thread(lifespan_context.python_session.execute, snippet)
+    # Run the blocking subprocess call on the dedicated Lumerical executor so
+    # we don't freeze the FastMCP server's asyncio event loop while waiting
+    # for the snippet to complete (see
+    # ``LumericalPersistentPythonSession.execute``'s synchronous polling
+    # loop). The existing ``threading.Lock`` inside ``execute`` still
+    # serializes access to the single subprocess; this change only moves the
+    # *waiting* off the event loop. See the ``_LUMERICAL_EXECUTOR`` /
+    # ``_RESTART_EXECUTOR`` module comment for why this isn't
+    # ``asyncio.to_thread``'s shared default executor.
+    raw = await asyncio.get_running_loop().run_in_executor(
+        _LUMERICAL_EXECUTOR, lifespan_context.python_session.execute, snippet
+    )
 
     if raw.get("success"):
         payload = extract_json_payload(raw.get("stdout", "")) or {}
@@ -188,8 +231,10 @@ async def open_session(
     # here (including "no such session") is logged at debug level but
     # otherwise ignored so the original open_session failure isn't masked.
     try:
-        await asyncio.to_thread(
-            lifespan_context.python_session.execute, build_close_session_snippet(name)
+        await asyncio.get_running_loop().run_in_executor(
+            _LUMERICAL_EXECUTOR,
+            lifespan_context.python_session.execute,
+            build_close_session_snippet(name),
         )
     except Exception as exc:  # pragma: no cover - best effort
         logger.debug("Defensive close after open_session failure ignored: %s", exc)
@@ -221,12 +266,15 @@ async def close_session(
         )
 
     snippet = build_close_session_snippet(name)
-    # Offload to a worker thread (see open_session) bounded by wait_for so a
-    # wedged subprocess can't hang the agent. The orphaned thread is harmless;
-    # ``restart_session`` is the universal escape hatch.
+    # Offload to the dedicated Lumerical executor (see open_session) bounded
+    # by wait_for so a wedged subprocess can't hang the agent. The orphaned
+    # worker thread is harmless; ``restart_session`` is the universal escape
+    # hatch.
     try:
         raw = await asyncio.wait_for(
-            asyncio.to_thread(lifespan_context.python_session.execute, snippet),
+            asyncio.get_running_loop().run_in_executor(
+                _LUMERICAL_EXECUTOR, lifespan_context.python_session.execute, snippet
+            ),
             timeout=_CLOSE_SESSION_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
@@ -341,10 +389,11 @@ async def execute_python_code(
     # purely static tools like ``get_guidelines_for`` -- and triggers a
     # client-side ``Cannot read properties of undefined (reading 'invoke')``
     # error in Cursor's MCP client when calls are issued in parallel. We
-    # instead run the blocking ``execute(...)`` on a worker thread via
-    # ``asyncio.to_thread`` so the event loop stays responsive; the existing
-    # ``threading.Lock`` inside ``LumericalPersistentPythonSession.execute``
-    # still serializes access to the single subprocess.
+    # instead run the blocking ``execute(...)`` on the dedicated Lumerical
+    # executor (``_LUMERICAL_EXECUTOR``) so the event loop stays responsive;
+    # the existing ``threading.Lock`` inside
+    # ``LumericalPersistentPythonSession.execute`` still serializes access to
+    # the single subprocess.
     lifespan_context = _lifespan_context(ctx)
     session = lifespan_context.python_session
 
@@ -360,7 +409,9 @@ async def execute_python_code(
     logger.info("Executing Python code in persistent session:\n%s", sanitized_code)
 
     try:
-        result = await asyncio.to_thread(session.execute, sanitized_code)
+        result = await asyncio.get_running_loop().run_in_executor(
+            _LUMERICAL_EXECUTOR, session.execute, sanitized_code
+        )
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("Error executing Python code: %s", exc)
         return {"success": False, "error": f"Error executing Python code: {exc}"}
@@ -451,9 +502,13 @@ async def restart_session(ctx: Context) -> dict[str, Any]:
 
     # ``PersistentPythonSession.restart`` is synchronous (stop + start, both
     # of which block while the subprocess is torn down / spawned). Offload it
-    # to a worker thread so the asyncio event loop stays responsive to any
-    # other in-flight tool calls.
-    restart_result = await asyncio.to_thread(py.restart)
+    # to the dedicated single-worker ``_RESTART_EXECUTOR`` -- deliberately
+    # NOT ``_LUMERICAL_EXECUTOR`` or ``asyncio.to_thread``'s shared default
+    # executor -- so restart always has a free thread even when every worker
+    # in the other pool is parked on a wedged ``execute()`` call (see the
+    # module-level comment above ``_LUMERICAL_EXECUTOR``/``_RESTART_EXECUTOR``
+    # for the starvation scenario this avoids).
+    restart_result = await asyncio.get_running_loop().run_in_executor(_RESTART_EXECUTOR, py.restart)
 
     if not restart_result.get("success"):
         return envelope_failure(

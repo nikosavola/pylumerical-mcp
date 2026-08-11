@@ -177,6 +177,12 @@ class PyLumericalMCP(PyAnsysBaseMCP):
             yield self.context  # type: ignore[attr-defined]
 
         finally:
+            # Deliberately kept on ``asyncio.to_thread``'s shared default
+            # executor rather than ``tools._LUMERICAL_EXECUTOR`` (see that
+            # module for why the tool-call sites use a dedicated pool): this
+            # runs exactly once, after the lifespan's ``yield`` returns, when
+            # no other tool call should still be racing for a worker thread.
+            # There's nothing here for a dedicated pool to protect against.
             await asyncio.to_thread(self.cleanup_python_session)
             self.product_cleanup()
 

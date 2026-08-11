@@ -25,6 +25,7 @@ Lumerical installed.
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import json
 import threading
 import time
@@ -437,6 +438,70 @@ async def test_restart_session_does_not_block_event_loop(ctx, mock_python_sessio
     # If restart() ran on the event-loop thread, the ticker couldn't tick
     # while it was sleeping. With asyncio.to_thread it can.
     assert loop_ticks >= 5
+
+
+@pytest.mark.asyncio
+async def test_restart_session_not_starved_by_saturated_lumerical_executor(
+    ctx, mock_python_session, app_ctx, monkeypatch
+):
+    """``restart_session`` must not queue behind a saturated Lumerical executor.
+
+    Regression test for the executor-starvation scenario this module's
+    ``_LUMERICAL_EXECUTOR`` / ``_RESTART_EXECUTOR`` split fixes: if
+    ``execute_python_code``/``open_session``/``close_session`` and
+    ``restart_session`` all shared one thread pool (as they effectively did
+    when every call site used ``asyncio.to_thread``'s shared default
+    executor), a single wedged ``execute()`` call filling every worker
+    thread in that pool would leave ``restart_session`` -- the documented
+    recovery path -- with no thread to run on, since it would be queued
+    behind the very calls it exists to unstick.
+
+    We stand in for a *saturated* ``_LUMERICAL_EXECUTOR`` with a
+    single-worker pool, fill its only worker with a blocked
+    ``execute_python_code`` call, and assert ``restart_session`` still
+    completes promptly by running on the separate ``_RESTART_EXECUTOR``.
+    """
+    saturated_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="test-lumerical-exec")
+    monkeypatch.setattr(tools, "_LUMERICAL_EXECUTOR", saturated_executor)
+
+    app_ctx.sessions["fdtd1"] = SessionInfo(name="fdtd1", product="fdtd")
+    release_execute = threading.Event()
+
+    def wedged_execute(_code: str) -> dict:
+        release_execute.wait(timeout=30.0)
+        return _success_result()
+
+    mock_python_session.execute.side_effect = wedged_execute
+    mock_python_session.restart.return_value = {
+        "success": True,
+        "message": "Session restarted successfully.",
+    }
+
+    wedged_task = asyncio.create_task(tools.execute_python_code(ctx, code="hang_forever()"))
+    try:
+        # Let the (only) worker thread in the saturated executor pick up the
+        # wedged call before dispatching restart_session.
+        await asyncio.sleep(0.05)
+
+        start = time.monotonic()
+        parsed = await asyncio.wait_for(tools.restart_session(ctx), timeout=5.0)
+        elapsed = time.monotonic() - start
+
+        assert parsed["success"] is True, parsed
+        assert parsed["data"]["restarted"] is True
+        assert app_ctx.sessions == {}
+        assert elapsed < 3.0, (
+            f"restart_session took {elapsed:.2f}s behind a saturated Lumerical executor"
+        )
+
+        # The wedged execute_python_code call is still parked on the
+        # saturated executor -- proof restart_session really completed on a
+        # separate pool rather than queueing behind it.
+        assert not wedged_task.done()
+    finally:
+        release_execute.set()
+        await asyncio.wait_for(wedged_task, timeout=5.0)
+        saturated_executor.shutdown(wait=True)
 
 
 # ---------------------------------------------------------------------------
