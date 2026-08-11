@@ -32,6 +32,8 @@ from typing import Optional, cast
 from ansys.common.mcp import PyAnsysBaseAppContext
 from fastmcp import Context
 
+from ansys.lumerical.mcp.config import Config, load_config
+
 
 @dataclass
 class SessionInfo:
@@ -49,6 +51,7 @@ class PyLumericalContext(PyAnsysBaseAppContext):
     """Multi-session context for the PyLumerical MCP server."""
 
     sessions: dict[str, SessionInfo] = field(default_factory=dict)
+    config: Config = field(default_factory=load_config)
 
 
 def _lifespan_context(ctx: Context) -> PyLumericalContext:

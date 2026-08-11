@@ -101,7 +101,9 @@ class PyLumericalMCP(PyAnsysBaseMCP):
             working_directory=self.working_directory,
             startup_code=LUMERICAL_STARTUP_CODE,
         )
-        return PyLumericalContext(python_session=py_session, command_history=[])
+        return PyLumericalContext(
+            python_session=py_session, command_history=[], config=self._config
+        )
 
     def product_startup(self) -> None:
         """Run framework startup logging after subprocess launch."""

@@ -36,7 +36,6 @@ from fastmcp import Context
 from pydantic import Field
 
 from ansys.lumerical.mcp._envelope import _compact_execute_envelope
-from ansys.lumerical.mcp.config import load_config
 from ansys.lumerical.mcp.context import SessionInfo, _lifespan_context
 from ansys.lumerical.mcp.server import app
 from ansys.lumerical.mcp.session_helpers import (
@@ -144,7 +143,7 @@ async def open_session(
     ``restart_session`` tool call to recover.
     """
     lifespan_context = _lifespan_context(ctx)
-    cfg = load_config()
+    cfg = lifespan_context.config
     effective_hide = cfg.hide_gui if hide is None else bool(hide)
 
     if name in lifespan_context.sessions:

@@ -38,6 +38,7 @@ from ansys.lumerical.mcp._envelope import (
     _MAX_STREAM_CHARS,
     _compact_execute_envelope,
 )
+from ansys.lumerical.mcp.config import Config
 from ansys.lumerical.mcp.context import PyLumericalContext, SessionInfo
 from ansys.lumerical.mcp.contexts import get_guidelines_for
 
@@ -160,10 +161,8 @@ async def test_open_session_failure_attempts_defensive_close(ctx, mock_python_se
 
 
 @pytest.mark.asyncio
-async def test_open_session_uses_env_default_for_hide(
-    ctx, mock_python_session, app_ctx, monkeypatch
-):
-    monkeypatch.setenv("LUMERICAL_HIDE_GUI", "0")
+async def test_open_session_uses_env_default_for_hide(ctx, mock_python_session, app_ctx):
+    app_ctx.config = Config(hide_gui=False)
     mock_python_session.execute.return_value = _success_result(stdout='{"name":"s1"}')
 
     await tools.open_session(ctx, name="s1", product="fdtd")
@@ -173,20 +172,21 @@ async def test_open_session_uses_env_default_for_hide(
 
 
 @pytest.mark.asyncio
-async def test_open_session_env_default_hide_true_flows_through(
-    ctx, mock_python_session, app_ctx, monkeypatch
-):
-    """When LUMERICAL_HIDE_GUI=1 and the caller omits ``hide``, the env-var
-    default must reach the snippet (mirror of the False case above).
+async def test_open_session_env_default_hide_true_flows_through(ctx, mock_python_session, app_ctx):
+    """When the resolved config's ``hide_gui`` is True and the caller omits
+    ``hide``, that default must reach the snippet (mirror of the False case
+    above).
 
     Regression guard for the bug where an LLM client always passed
     ``hide=True`` explicitly: even though the snippet text was the same
-    in that case, the explicit-arg path bypasses the env var entirely
-    and prevents users from flipping GUI visibility globally. This test
-    plus its False-case sibling pin down the contract that an omitted
-    ``hide`` argument *always* defers to ``LUMERICAL_HIDE_GUI``.
+    in that case, the explicit-arg path bypasses the configured default
+    entirely and prevents users from flipping GUI visibility globally. This
+    test plus its False-case sibling pin down the contract that an omitted
+    ``hide`` argument *always* defers to the session's configured
+    ``hide_gui`` default (resolved once, from ``LUMERICAL_HIDE_GUI``, at
+    context-creation time).
     """
-    monkeypatch.setenv("LUMERICAL_HIDE_GUI", "1")
+    app_ctx.config = Config(hide_gui=True)
     mock_python_session.execute.return_value = _success_result(stdout='{"name":"s2"}')
 
     await tools.open_session(ctx, name="s2", product="fdtd")
