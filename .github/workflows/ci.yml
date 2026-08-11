@@ -190,12 +190,25 @@ jobs:
         env:
           DOCKER_CONTAINER_LUMERICAL_UNIFIED_NAME: ${{ env.DOCKER_CONTAINER_LUMERICAL_UNIFIED_NAME }}
         run: |
+          # -p no:xdist unregisters the pytest-xdist plugin for this invocation. Global
+          # addopts in pyproject.toml sets -n=auto for the unit-test suite, but this job
+          # runs against a single licensed Lumerical Unified instance in one container;
+          # letting xdist spawn multiple workers here would open several concurrent
+          # licensed FDTD sessions, risking license-seat contention and memory pressure.
+          # This job must always run serially, regardless of the global addopts setting.
+          #
+          # -o addopts="" is required alongside -p no:xdist: pytest blocks the xdist
+          # plugin (and the -n option it registers) before parsing addopts, so leaving
+          # -n=auto in the inherited addopts would make pytest abort with "unrecognized
+          # arguments: -n=auto" instead of just running serially. Clearing addopts here
+          # is safe because --cov/--cov-report/--verbose are already passed explicitly
+          # below.
           docker exec \
             --workdir /home/lumerical/pylumerical-mcp \
             "${DOCKER_CONTAINER_LUMERICAL_UNIFIED_NAME}" /bin/bash --login -c \
-            "python -m pip install -e .[tests] && \
-             pytest -m integration --cov=ansys.lumerical.mcp \
-             --cov-report=xml:.cov/xml --cov-report=html:.cov/html --verbose"
+            'python -m pip install -e .[tests] && \
+             pytest -m integration -p no:xdist -o addopts="" --cov=ansys.lumerical.mcp \
+             --cov-report=xml:.cov/xml --cov-report=html:.cov/html --verbose'
 
       - name: "Restore original ownership"
         if: always()
