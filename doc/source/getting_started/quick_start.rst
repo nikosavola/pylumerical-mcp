@@ -89,14 +89,14 @@ Clients then authenticate by sending ``Authorization: Bearer <token>``, where
 testing only, FastMCP's ``StaticTokenVerifier`` accepts a plain dictionary of
 valid token strings instead of JWTs -- it is explicitly documented upstream
 as unsuitable for production use, since tokens are stored in plain text. For
-multi-user or production-facing deployments, prefer a real OAuth or
+multi-user or production-facing deployments, prefer a real OAuth 2.0 or
 JWKS-based provider; see FastMCP's
 `authentication documentation <https://gofastmcp.com/servers/auth/authentication>`__
 for the full list of supported providers (GitHub, Google, Auth0, WorkOS, and
 others).
 
 Authentication is **not currently wired up** in PyLumerical-MCP by default --
-the snippet above documents the supported path rather than an existing
+the preceding snippet documents the supported path rather than an existing
 feature. Turning it into a first-class, configurable option (for example, an
 environment variable that selects and configures an ``AuthProvider`` at
 startup) is a possible follow-up.

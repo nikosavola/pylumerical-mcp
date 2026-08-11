@@ -27,6 +27,11 @@ pytest
 (i?)RST
 toctree
 [Uu]nescaped
+[Uu]nsandboxed
+[Uu]ntrusted
+[Pp]luggable
+JWTs
+OAuth
 uv
 uvx
 

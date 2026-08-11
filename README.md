@@ -18,7 +18,10 @@ Key features:
 - **Multi-session management**: Open, list, and close multiple concurrent
   Lumerical sessions (FDTD, MODE, DEVICE, INTERCONNECT) under user-chosen names.
 - **Persistent Python execution**: Run arbitrary Python and PyLumerical code
-  against live Lumerical handles, with state preserved across tool calls.
+  against live Lumerical handles, with state preserved across tool calls. This
+  code runs unsandboxed with the same privileges as the server process; see
+  [Security considerations](./SECURITY.md#security-considerations) before
+  exposing this server to untrusted clients or networks.
 - **Workflow guidance**: Access context and best practices for Lumerical simulations.
 - **Cross platform support**: Enable Windows and Linux support with headless CAD.
 
