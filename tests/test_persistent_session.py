@@ -179,9 +179,12 @@ def test_execute_surfaces_subprocess_death_instead_of_hanging(
     blocked: dict[str, object] = {}
 
     def hang() -> None:
-        # ``time.sleep(60)`` is way longer than the test's allowed wall time,
-        # so we depend entirely on the liveness check to surface the death.
-        blocked["result"] = session.execute("import time; time.sleep(60)")
+        # ``proc.kill()`` below fires the subprocess almost immediately (after
+        # only a 0.3 s head start), independent of this sleep duration, so
+        # 20 s just needs to comfortably outlast the test's own 8 s join
+        # timeout -- we depend entirely on the liveness check to surface
+        # the death, never on the sleep actually completing.
+        blocked["result"] = session.execute("import time; time.sleep(20)")
 
     t = threading.Thread(target=hang, daemon=True)
     t.start()
@@ -218,7 +221,10 @@ def test_restart_recovers_session_after_subprocess_kill(
     blocked: dict[str, object] = {}
 
     def hang() -> None:
-        blocked["result"] = session.execute("import time; time.sleep(60)")
+        # See the comment in the sibling ``..._instead_of_hanging`` test above:
+        # ``proc.kill()`` fires almost immediately, so 20 s just needs to
+        # comfortably outlast this test's own 8 s join timeout.
+        blocked["result"] = session.execute("import time; time.sleep(20)")
 
     t = threading.Thread(target=hang, daemon=True)
     t.start()
