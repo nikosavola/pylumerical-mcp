@@ -34,6 +34,73 @@ To configure Streamable HTTP transport, you can set it through the ``.env`` file
 
 #. Connect to the MCP server from your client.
 
+.. warning::
+
+   The ``execute_python_code`` tool runs arbitrary, unsandboxed Python with
+   the same privileges as the MCP server process (file system, network, and
+   subprocess access). Streamable HTTP exposes that tool over the network,
+   so treat the endpoint accordingly:
+
+   - Keep ``FASTMCP_HOST`` set to ``"127.0.0.1"`` unless a reverse proxy or
+     authentication layer terminates connections in front of the server.
+   - Never expose ``FASTMCP_PORT`` to an untrusted network (for example, the
+     public internet or a shared corporate network) without an
+     authentication layer in front of it.
+
+   See `Secure the Streamable HTTP transport`_ for how to add
+   authentication.
+
+Secure the Streamable HTTP transport
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PyLumerical-MCP does not enable authentication by default. The server is
+built on `FastMCP <https://github.com/jlowin/fastmcp>`__, which supports
+pluggable authentication for its HTTP transports through the ``auth``
+argument of ``fastmcp.FastMCP``. ``PyLumericalMCP`` inherits this argument
+(via ``ansys.common.mcp.PyAnsysBaseMCP``, which forwards unrecognized keyword
+arguments to ``FastMCP.__init__``), so authentication can be enabled without
+modifying the class hierarchy.
+
+To require a bearer token, construct a FastMCP ``AuthProvider`` and pass it
+as ``auth=`` where ``PyLumericalMCP`` is instantiated, in
+``src/ansys/lumerical/mcp/server.py``. For example, using FastMCP's
+``JWTVerifier`` with a shared HS256 secret read from the environment:
+
+.. code:: python
+
+    import os
+
+    from fastmcp.server.auth.providers.jwt import JWTVerifier
+
+    auth = JWTVerifier(
+        public_key=os.environ["PYLUMERICAL_MCP_BEARER_SECRET"],
+        algorithm="HS256",
+    )
+
+    app = PyLumericalMCP(
+        name="pylumerical-mcp",
+        config=config,
+        instructions=PYLUMERICAL_SYSTEM_PROMPT,
+        auth=auth,
+    )
+
+Clients then authenticate by sending ``Authorization: Bearer <token>``, where
+``<token>`` is a JWT signed with the same shared secret. For quick local
+testing only, FastMCP's ``StaticTokenVerifier`` accepts a plain dictionary of
+valid token strings instead of JWTs -- it is explicitly documented upstream
+as unsuitable for production use, since tokens are stored in plain text. For
+multi-user or production-facing deployments, prefer a real OAuth or
+JWKS-based provider; see FastMCP's
+`authentication documentation <https://gofastmcp.com/servers/auth/authentication>`__
+for the full list of supported providers (GitHub, Google, Auth0, WorkOS, and
+others).
+
+Authentication is **not currently wired up** in PyLumerical-MCP by default --
+the snippet above documents the supported path rather than an existing
+feature. Turning it into a first-class, configurable option (for example, an
+environment variable that selects and configures an ``AuthProvider`` at
+startup) is a possible follow-up.
+
 Configure STDIO transport
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
