@@ -40,6 +40,9 @@ env/
 *.swp
 *.swo
 
+# Claude Code local state (agent worktrees, etc.)
+.claude/
+
 # Testing
 .pytest_cache/
 .coverage
