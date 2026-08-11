@@ -15,7 +15,7 @@ sync_python_dependencies() {
 
 install_pre_commit() {
     echo "[post-create] Installing pre-commit as a standalone uv tool..."
-    uv tool install --force pre-commit
+    uv tool install --force pre-commit==4.6.2
 
     # Ensure the uv-managed tool bin dir is on PATH for the rest of this
     # script (the devcontainer's interactive shells get it via the standard

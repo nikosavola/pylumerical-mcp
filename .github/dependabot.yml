@@ -32,3 +32,19 @@ updates:
       actions:
         patterns:
           - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/.devcontainer"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "maintenance"
+      - "dependencies"
+    commit-message:
+      prefix: "build(docker)"
+    groups:
+      docker-deps:
+        patterns:
+          - "*"
