@@ -8,8 +8,8 @@ coverage:
         target: 80%
     patch:
       default:
-        target: 80%
-        threshold: 5%
+        target: auto
+        threshold: 0%
 
 codecov:
   notify:
