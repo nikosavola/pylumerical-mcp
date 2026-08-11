@@ -447,7 +447,7 @@ async def test_restart_session_not_starved_by_saturated_lumerical_executor(
     """``restart_session`` must not queue behind a saturated Lumerical executor.
 
     Regression test for the executor-starvation scenario this module's
-    ``_LUMERICAL_EXECUTOR`` / ``_RESTART_EXECUTOR`` split fixes: if
+    ``_LUMERICAL_EXECUTOR`` / per-call restart executor split fixes: if
     ``execute_python_code``/``open_session``/``close_session`` and
     ``restart_session`` all shared one thread pool (as they effectively did
     when every call site used ``asyncio.to_thread``'s shared default
@@ -459,23 +459,41 @@ async def test_restart_session_not_starved_by_saturated_lumerical_executor(
     We stand in for a *saturated* ``_LUMERICAL_EXECUTOR`` with a
     single-worker pool, fill its only worker with a blocked
     ``execute_python_code`` call, and assert ``restart_session`` still
-    completes promptly by running on the separate ``_RESTART_EXECUTOR``.
+    completes promptly on a separate pool.
+
+    Timing alone ("restart was fast, execute is still pending") is *not*
+    sufficient proof of correct routing: it would hold just as well if both
+    calls shared the ordinary ``asyncio.to_thread`` default executor with
+    spare capacity, since the patched ``_LUMERICAL_EXECUTOR`` would simply
+    go unused. (Confirmed by mutation testing: reverting all four
+    ``run_in_executor(...)`` call sites in ``tools.py`` back to plain
+    ``asyncio.to_thread(...)`` -- while leaving the executor objects/
+    constants defined but unreferenced -- still made the timing-only version
+    of this test pass.) To actually pin the routing, we record
+    ``threading.current_thread().name`` from inside each mocked callable and
+    assert it carries the expected pool's ``thread_name_prefix``: this fails
+    if either call site is ever routed through the wrong pool, or through no
+    dedicated pool at all.
     """
     saturated_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="test-lumerical-exec")
     monkeypatch.setattr(tools, "_LUMERICAL_EXECUTOR", saturated_executor)
 
     app_ctx.sessions["fdtd1"] = SessionInfo(name="fdtd1", product="fdtd")
     release_execute = threading.Event()
+    execute_thread_names: list[str] = []
+    restart_thread_names: list[str] = []
 
     def wedged_execute(_code: str) -> dict:
+        execute_thread_names.append(threading.current_thread().name)
         release_execute.wait(timeout=30.0)
         return _success_result()
 
+    def restart_records_thread() -> dict:
+        restart_thread_names.append(threading.current_thread().name)
+        return {"success": True, "message": "Session restarted successfully."}
+
     mock_python_session.execute.side_effect = wedged_execute
-    mock_python_session.restart.return_value = {
-        "success": True,
-        "message": "Session restarted successfully.",
-    }
+    mock_python_session.restart.side_effect = restart_records_thread
 
     wedged_task = asyncio.create_task(tools.execute_python_code(ctx, code="hang_forever()"))
     try:
@@ -498,10 +516,96 @@ async def test_restart_session_not_starved_by_saturated_lumerical_executor(
         # saturated executor -- proof restart_session really completed on a
         # separate pool rather than queueing behind it.
         assert not wedged_task.done()
+
+        # Pin the routing itself: the execute call ran on the (patched)
+        # Lumerical executor's worker thread, and the restart call ran on a
+        # thread from the dedicated per-call restart executor -- not on
+        # ``asyncio.to_thread``'s shared default executor (whose worker
+        # threads are unprefixed, e.g. "ThreadPoolExecutor-0_0") for either.
+        assert execute_thread_names == ["test-lumerical-exec_0"]
+        assert len(restart_thread_names) == 1
+        assert restart_thread_names[0].startswith(tools._RESTART_THREAD_NAME_PREFIX)
     finally:
         release_execute.set()
         await asyncio.wait_for(wedged_task, timeout=5.0)
         saturated_executor.shutdown(wait=True)
+
+
+@pytest.mark.asyncio
+async def test_restart_session_timeout_does_not_poison_next_restart(
+    ctx, mock_python_session, app_ctx, monkeypatch
+):
+    """A wedged restart must not permanently occupy the restart pool.
+
+    Regression test for the SPOF risk of a *shared, persistent* single-
+    worker restart executor: if ``restart_session`` routed every call
+    through one long-lived ``ThreadPoolExecutor(max_workers=1)``, a restart
+    whose underlying ``restart()`` call never returns (e.g. wedged
+    contending for ``_execution_lock`` inside ``start()``) would
+    permanently occupy that pool's only worker thread. Every subsequent
+    ``restart_session`` call would then queue behind it forever, since
+    there would be no other worker to run on -- turning the one documented
+    recovery path into a permanent outage after a single bad restart.
+
+    We simulate the wedge with a ``threading.Event`` that is never set (so
+    the first call's mocked ``restart()`` blocks indefinitely), patch
+    ``_RESTART_TIMEOUT_S`` down so the test doesn't wait 60s, and assert:
+    (1) the first call returns a clean ``timed_out=True`` failure envelope
+    within a bounded time, and (2) a second, immediately-following
+    ``restart_session`` call with a normal fast mock still completes
+    promptly and successfully -- proving the stuck first call's executor
+    didn't poison the second call's chances of getting a worker thread.
+    """
+    monkeypatch.setattr(tools, "_RESTART_TIMEOUT_S", 0.5)
+
+    app_ctx.sessions["fdtd1"] = SessionInfo(name="fdtd1", product="fdtd")
+    # Deliberately never set: models a restart() that hangs forever. Bounded
+    # at 2s (rather than truly unbounded) purely so the orphaned worker
+    # thread doesn't outlive the test process -- ``ThreadPoolExecutor``
+    # workers are not daemon threads, so an unbounded wait here would delay
+    # interpreter shutdown. 2s is comfortably longer than everything this
+    # test asserts happens promptly (the 0.5s timeout and the fast second
+    # restart), so it never masks the property under test.
+    never_release = threading.Event()
+
+    def wedged_restart() -> dict:
+        never_release.wait(timeout=2.0)
+        return {"success": True}  # pragma: no cover - unreachable in this test
+
+    mock_python_session.restart.side_effect = wedged_restart
+
+    start = time.monotonic()
+    first = await asyncio.wait_for(tools.restart_session(ctx), timeout=5.0)
+    elapsed = time.monotonic() - start
+
+    assert first["success"] is False
+    assert first["timed_out"] is True
+    assert first["retained"] is True
+    assert elapsed < 3.0, f"restart_session took {elapsed:.2f}s to report the timeout"
+    # The wedged call's local session registry entry is preserved (subprocess
+    # state unknown), unlike a successful restart which clears it.
+    assert "fdtd1" in app_ctx.sessions
+
+    # Second call: a fresh mock that returns promptly. If the first call's
+    # disposable executor had been shared/persistent and its one worker were
+    # still stuck in wedged_restart, this call would queue behind it and the
+    # wait_for below would time out.
+    mock_python_session.restart.side_effect = None
+    mock_python_session.restart.return_value = {
+        "success": True,
+        "message": "Session restarted successfully.",
+    }
+
+    start = time.monotonic()
+    second = await asyncio.wait_for(tools.restart_session(ctx), timeout=5.0)
+    elapsed = time.monotonic() - start
+
+    assert second["success"] is True, second
+    assert second["data"]["restarted"] is True
+    assert app_ctx.sessions == {}
+    assert elapsed < 3.0, (
+        f"second restart_session took {elapsed:.2f}s -- may be stuck behind the first"
+    )
 
 
 # ---------------------------------------------------------------------------

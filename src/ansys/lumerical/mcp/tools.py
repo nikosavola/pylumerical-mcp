@@ -56,11 +56,25 @@ logger = logging.getLogger(__name__)
 # the subprocess is wedged so the agent can dispatch ``restart_session``.
 _CLOSE_SESSION_TIMEOUT_S = 30.0
 
+# Hard ceiling on restart_session's underlying restart() call. A healthy
+# restart (stop the old subprocess, spawn a new one, re-run startup code)
+# finishes in a few seconds; this is intentionally generous so a slow-but-
+# healthy restart never false-positives as a timeout. See the comment above
+# ``restart_session`` for why a timeout is needed at all even though restart
+# is "the" recovery path.
+_RESTART_TIMEOUT_S = 60.0
 
-# Two *separate* dedicated thread pools -- deliberately not
-# ``asyncio.to_thread``'s shared default executor (a ``ThreadPoolExecutor``
-# sized ``min(32, os.cpu_count() + 4)`` that every ``to_thread`` call in the
-# process shares unless overridden).
+# ``restart_session`` gets a brand-new, single-use ``ThreadPoolExecutor`` per
+# call (see ``restart_session`` below) rather than one shared, persistent
+# pool. All such disposable executors share this ``thread_name_prefix`` so
+# tests/logs can still identify restart worker threads.
+_RESTART_THREAD_NAME_PREFIX = "pylumerical-restart"
+
+
+# A dedicated thread pool for Lumerical execute/open/close calls --
+# deliberately not ``asyncio.to_thread``'s shared default executor (a
+# ``ThreadPoolExecutor`` sized ``min(32, os.cpu_count() + 4)`` that every
+# ``to_thread`` call in the process shares unless overridden).
 #
 # ``LumericalPersistentPythonSession.execute`` serializes all subprocess
 # access behind a single ``threading.Lock`` (``_execution_lock``, set up in
@@ -77,21 +91,18 @@ _CLOSE_SESSION_TIMEOUT_S = 30.0
 # ``PersistentPythonSession.restart`` calls ``stop()`` then ``start()``, and
 # ``start()`` re-executes ``startup_code`` via ``self.execute(...)`` -- so
 # ``restart()`` itself must acquire ``_execution_lock``. If a saturated
-# shared executor already has every worker parked waiting on that lock, the
-# ``restart_session`` call queues behind them and never gets a thread to run
-# on: the recovery path is starved by the very calls it exists to unstick.
+# shared executor already has every worker parked waiting on that lock, a
+# ``restart_session`` call routed through *that same* pool would queue
+# behind them and never get a thread to run on: the recovery path would be
+# starved by the very calls it exists to unstick. That's why
+# ``restart_session`` is never routed through ``_LUMERICAL_EXECUTOR`` -- see
+# ``restart_session`` below for what it uses instead, and why.
 #
-# Routing ``restart_session`` through its own single-worker executor
-# guarantees it always has a thread available, independent of how many
-# ``execute_python_code``/``open_session``/``close_session`` calls are
-# currently blocked. Do not merge these back into one pool.
-#
-# Neither pool is explicitly ``shutdown()`` -- ``ThreadPoolExecutor``
-# registers an ``atexit`` handler that joins its workers automatically, and
-# these two live for the lifetime of the process (one MCP server per
-# process), so there's no leak to guard against here.
+# ``_LUMERICAL_EXECUTOR`` is never explicitly ``shutdown()`` --
+# ``ThreadPoolExecutor`` registers an ``atexit`` handler that joins its
+# workers automatically, and it lives for the lifetime of the process (one
+# MCP server per process), so there's no leak to guard against here.
 _LUMERICAL_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="pylumerical-exec")
-_RESTART_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pylumerical-restart")
 
 
 _TOOL_SET_DEFINITIONS: list[dict[str, Any]] = [
@@ -197,9 +208,9 @@ async def open_session(
     # ``LumericalPersistentPythonSession.execute``'s synchronous polling
     # loop). The existing ``threading.Lock`` inside ``execute`` still
     # serializes access to the single subprocess; this change only moves the
-    # *waiting* off the event loop. See the ``_LUMERICAL_EXECUTOR`` /
-    # ``_RESTART_EXECUTOR`` module comment for why this isn't
-    # ``asyncio.to_thread``'s shared default executor.
+    # *waiting* off the event loop. See the ``_LUMERICAL_EXECUTOR`` module
+    # comment for why this isn't ``asyncio.to_thread``'s shared default
+    # executor.
     raw = await asyncio.get_running_loop().run_in_executor(
         _LUMERICAL_EXECUTOR, lifespan_context.python_session.execute, snippet
     )
@@ -480,6 +491,13 @@ async def restart_session(ctx: Context) -> dict[str, Any]:
       subprocess. The cleared names are returned in the response envelope
       so the agent can re-open them if desired.
 
+    Bounded by :data:`_RESTART_TIMEOUT_S`. On timeout, returns a failure
+    envelope with ``timed_out=True`` and ``retained=True`` (the local session
+    registry is left untouched since the subprocess's true state is
+    unknown) so the operator can decide what to do next. The orphaned
+    restart worker thread is left to drain on its own (asyncio cannot cancel
+    it).
+
     Returns
     -------
     dict[str, Any]
@@ -502,13 +520,62 @@ async def restart_session(ctx: Context) -> dict[str, Any]:
 
     # ``PersistentPythonSession.restart`` is synchronous (stop + start, both
     # of which block while the subprocess is torn down / spawned). Offload it
-    # to the dedicated single-worker ``_RESTART_EXECUTOR`` -- deliberately
-    # NOT ``_LUMERICAL_EXECUTOR`` or ``asyncio.to_thread``'s shared default
-    # executor -- so restart always has a free thread even when every worker
-    # in the other pool is parked on a wedged ``execute()`` call (see the
-    # module-level comment above ``_LUMERICAL_EXECUTOR``/``_RESTART_EXECUTOR``
-    # for the starvation scenario this avoids).
-    restart_result = await asyncio.get_running_loop().run_in_executor(_RESTART_EXECUTOR, py.restart)
+    # to a *fresh, disposable, single-use* executor -- deliberately NOT
+    # ``_LUMERICAL_EXECUTOR``, and deliberately NOT a shared persistent
+    # restart pool either -- so restart always gets a genuinely free thread,
+    # even when every worker in ``_LUMERICAL_EXECUTOR`` is parked on a
+    # wedged ``execute()`` call (see the module-level comment above
+    # ``_LUMERICAL_EXECUTOR`` for that starvation scenario).
+    #
+    # Why *disposable* rather than a shared, persistent, single-worker pool
+    # (an earlier version of this fix used exactly that): ``restart()``
+    # calls ``stop()`` then ``start()``, and ``start()`` re-executes
+    # ``startup_code`` via ``self.execute(...)``, which contends for the
+    # session's ``_execution_lock`` against any other in-flight ``execute()``
+    # call. If a stale, still-queued ``execute()`` call wins that lock race
+    # and itself hangs, ``restart()`` can block forever on the lock. With a
+    # *shared* single-worker restart pool, that single worker is now
+    # permanently occupied -- every subsequent ``restart_session`` call
+    # queues behind it forever, since there is no other worker to run on.
+    # That makes a single wedged restart a permanent, unrecoverable outage
+    # of the one tool whose entire job is to recover from a wedged
+    # subprocess (the "universal escape hatch"). Giving every call its own
+    # brand-new executor means a wedged restart only ever occupies *that*
+    # call's throwaway pool; the next ``restart_session`` call creates its
+    # own fresh executor and gets a genuinely new worker thread regardless
+    # of what the previous stuck one is still doing. ``asyncio.wait_for``
+    # bounds our own wait so we don't hang either; on timeout we shut the
+    # disposable executor down with ``wait=False`` and leave the abandoned
+    # thread to drain on its own (asyncio cannot forcibly kill a thread --
+    # same accepted tradeoff as ``close_session``'s timeout).
+    restart_executor = ThreadPoolExecutor(
+        max_workers=1, thread_name_prefix=_RESTART_THREAD_NAME_PREFIX
+    )
+    try:
+        restart_result = await asyncio.wait_for(
+            asyncio.get_running_loop().run_in_executor(restart_executor, py.restart),
+            timeout=_RESTART_TIMEOUT_S,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            "restart_session timed out after %.1fs; restart() itself appears wedged "
+            "(likely contending with a stale execute() call for the subprocess lock).",
+            _RESTART_TIMEOUT_S,
+        )
+        return envelope_failure(
+            error=(
+                f"restart_session timed out after {_RESTART_TIMEOUT_S:.0f}s. The restart "
+                "itself appears wedged. The local session registry was left untouched "
+                "since the subprocess's resulting state is unknown."
+            ),
+            retained=True,
+            timed_out=True,
+        )
+    finally:
+        # Non-blocking: if the call above timed out, the worker thread is
+        # still running restart() and we must not wait for it here -- that
+        # would just move the hang into this finally block.
+        restart_executor.shutdown(wait=False)
 
     if not restart_result.get("success"):
         return envelope_failure(
