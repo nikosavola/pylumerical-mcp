@@ -142,7 +142,7 @@ digital to electrical directly.
 
 Use an **NRZ Pulse Generator** as the digital→electrical bridge:
 
-```
+```text
 PRBS (digital out) → NRZ Pulse Generator (digital in, electrical out) → Modulator (electrical in)
 ```
 

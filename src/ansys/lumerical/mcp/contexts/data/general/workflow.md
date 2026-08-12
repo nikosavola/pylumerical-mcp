@@ -15,7 +15,7 @@ with the matching product workflow guide -- currently
 For guided-wave optical simulations of photonic elements, also fetch
 `pic` before choosing solver windows, ports, or PML-facing geometry.
 
-**Official lumapi documentation**: https://developer.ansys.com/docs/lumerical/python-lumapi
+**Official lumapi documentation**: <https://developer.ansys.com/docs/lumerical/python-lumapi>
 
 ## Workflow Order
 

@@ -109,7 +109,7 @@ set to the conjugate transpose of the eigenvectors.
 This is the rarest case (Faraday rotation, MOKE, liquid crystal,
 gyrotropic materials). Reach for it only when the user explicitly
 asks. See the Ansys docs for the full pattern:
-https://optics.ansys.com/hc/en-us/articles/360034394694
+<https://optics.ansys.com/hc/en-us/articles/360034394694>
 
 See also: `fdtd_workflow` (PML, FDTD chunked build),
 `workflow` (generic snippet/chunking rules), `geometry`,

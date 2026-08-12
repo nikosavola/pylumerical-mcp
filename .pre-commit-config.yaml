@@ -71,3 +71,12 @@ repos:
           - mdformat-gfm
           - mdformat-gfm-alerts
         exclude: ^doc/changelog\.d/
+
+  # Markdown linting
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.2
+    hooks:
+      - id: markdownlint-cli2
+        name: markdownlint
+        args: [--config, .github/.markdownlint-cli2.yaml]
+        exclude: ^doc/changelog\.d/
