@@ -13,8 +13,8 @@ sources and monitors.
 
 ### Guidelines
 
-- Set wavelength range using ``setglobalsource`` for sources and
-  ``setglobalmonitor`` for monitors.
+- Set wavelength range using `setglobalsource` for sources and
+  `setglobalmonitor` for monitors.
 - Individual sources and monitors should inherit from global settings
   by default.
 - Only override global settings on individual objects when there is a
@@ -35,9 +35,9 @@ sources and monitors.
 
 ### Important: no dict syntax for global setters
 
-Unlike most lumapi functions, ``setglobalsource`` and
-``setglobalmonitor`` do **not** support dictionary-based initialization.
-You must use individual ``set``-style calls for each property.
+Unlike most lumapi functions, `setglobalsource` and
+`setglobalmonitor` do **not** support dictionary-based initialization.
+You must use individual `set`-style calls for each property.
 
 ### Example: setting global source and monitor properties
 
@@ -82,22 +82,22 @@ fdtd.addpower({
 
 For any waveguide excitation where S-parameters are needed (single
 waveguides, directional couplers, splitters, multi-port devices),
-use ``addport()`` instead of ``addmode()``. A port is a combined
+use `addport()` instead of `addmode()`. A port is a combined
 mode source + monitor with built-in S-parameter extraction; after
-``fdtd.run()`` each port exposes its own ``"S"`` dataset at
-``FDTD::ports::<port_name>`` (shape ``(N_freq, N_modes)``). For
+`fdtd.run()` each port exposes its own `"S"` dataset at
+`FDTD::ports::<port_name>` (shape `(N_freq, N_modes)`). For
 the full N x N S-matrix across every active port, use the
-S-parameter matrix sweep tool (see ``s_parameter_sweep``) --
-``FDTD::ports`` itself is a group, not a result provider, and
-``getresult("FDTD::ports", "S")`` raises
-``'FDTD::ports is not a result provider'``.
+S-parameter matrix sweep tool (see `s_parameter_sweep`) --
+`FDTD::ports` itself is a group, not a result provider, and
+`getresult("FDTD::ports", "S")` raises
+`'FDTD::ports is not a result provider'`.
 
-### Injection control: the ``FDTD::ports`` group, not the port
+### Injection control: the `FDTD::ports` group, not the port
 
-Per-port ``"mode selection"`` (e.g. ``"fundamental TE mode"``)
+Per-port `"mode selection"` (e.g. `"fundamental TE mode"`)
 chooses **which mode each port analyses**. Which port mode actually
-**injects** on a given ``fdtd.run()`` is owned by the
-``FDTD::ports`` group via its ``source port`` and ``source mode``
+**injects** on a given `fdtd.run()` is owned by the
+`FDTD::ports` group via its `source port` and `source mode`
 properties; only one port mode injects per run. Always set this
 explicitly rather than relying on whichever port was added first:
 
@@ -108,21 +108,21 @@ fdtd.setnamed("FDTD::ports", "source mode", "mode 1")
 
 For the full N x N matrix the S-parameter sweep tool rotates this
 source-port selection through every active port automatically;
-do not loop ``fdtd.run()`` manually.
+do not loop `fdtd.run()` manually.
 
 ### Other FDTD source types
 
-``addport()`` and ``addmode()`` are not the only sources. Reach
+`addport()` and `addmode()` are not the only sources. Reach
 for the others when ports/modes don't apply:
 
-- ``addplane`` -- plane-wave (free-space scattering, transmission
+- `addplane` -- plane-wave (free-space scattering, transmission
   / reflection through gratings or thin films).
-- ``addgaussian`` -- focused Gaussian / scalar beam.
-- ``adddipole`` -- point electric / magnetic dipole (LED, antenna,
+- `addgaussian` -- focused Gaussian / scalar beam.
+- `adddipole` -- point electric / magnetic dipole (LED, antenna,
   Purcell-factor problems).
-- ``addtfsf`` -- total-field / scattered-field plane wave for
+- `addtfsf` -- total-field / scattered-field plane wave for
   isolated scatterer cross-sections (RCS, absorption).
-- ``addimportedsource`` -- field profile imported from a
+- `addimportedsource` -- field profile imported from a
   monitor or external file.
 
 A port is the right choice whenever the structure has a clean
@@ -130,24 +130,24 @@ waveguide cross-section at the source plane; the source types
 above are for plane-wave illumination, free-space radiation, and
 non-waveguide problems.
 
-### Port ``direction`` convention
+### Port `direction` convention
 
 For S-parameter extraction with ports at opposite ends of a
 waveguide, the ports must **face into the simulation domain**:
 
 - **Input port** at the low-coordinate end of the propagation axis
-  (e.g. ``x = -L/2``) is the active source, injecting light toward
-  the device. Its ``direction`` is ``"Forward"``.
-- **Output port** at the high-coordinate end (e.g. ``x = +L/2``) is
-  passive (transmission monitor). Its ``direction`` is
-  ``"Backward"`` -- the port surface normal points back into the
-  simulation, which is what makes a wave travelling in ``+x``
+  (e.g. `x = -L/2`) is the active source, injecting light toward
+  the device. Its `direction` is `"Forward"`.
+- **Output port** at the high-coordinate end (e.g. `x = +L/2`) is
+  passive (transmission monitor). Its `direction` is
+  `"Backward"` -- the port surface normal points back into the
+  simulation, which is what makes a wave travelling in `+x`
   register as "incoming" for that port and gives the right sign
-  convention for ``S21``.
+  convention for `S21`.
 
-A common mistake is to set both ports to ``"Forward"``. The
-simulation will still run and per-port ``getresult`` calls (e.g.
-``getresult("FDTD::ports::output_port", "S")``) will still return
+A common mistake is to set both ports to `"Forward"`. The
+simulation will still run and per-port `getresult` calls (e.g.
+`getresult("FDTD::ports::output_port", "S")`) will still return
 numbers, but the "incident vs. transmitted" labelling at the output
 port is wrong, so the resulting S-parameters do not have the
 conventional meaning.
@@ -191,5 +191,5 @@ fdtd.addport({
 # across every active port, see ``s_parameter_sweep``.
 ```
 
-See also: ``fdtd_workflow``, ``materials``, ``geometry``,
-``fdtd_run_and_results``, ``s_parameter_sweep``.
+See also: `fdtd_workflow`, `materials`, `geometry`,
+`fdtd_run_and_results`, `s_parameter_sweep`.

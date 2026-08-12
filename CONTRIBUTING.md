@@ -7,4 +7,4 @@ the PyLumerical MCP project.
 
 The following contribution information is specific to PyLumerical MCP.
 
-[Contributing]: https://dev.docs.pyansys.com/how-to/contributing.html
+[contributing]: https://dev.docs.pyansys.com/how-to/contributing.html

@@ -5,7 +5,7 @@ integrated photonic devices that can be modeled with a 2.5D effective-index
 approximation. varFDTD reduces a 3D structure to a 2D propagation problem by
 deriving effective material properties from a reference vertical slab mode.
 
-Read ``workflow`` first. Pair this topic with ``geometry`` and ``materials``.
+Read `workflow` first. Pair this topic with `geometry` and `materials`.
 Use FDE first when the user still needs cross-sectional mode design inputs;
 use varFDTD for the larger planar propagation problem after those inputs are
 known.
@@ -45,17 +45,17 @@ bandwidth-dependent fitting.
 ## Recommended Workflow
 
 1. Confirm the device is suitable for the 2.5D varFDTD approximation.
-2. Build the geometry and assign the intended material models.
-3. Add the varFDTD simulation region and set its position, spans, background
+1. Build the geometry and assign the intended material models.
+1. Add the varFDTD simulation region and set its position, spans, background
    index, and simulation time.
-4. Configure the Effective Index settings carefully, especially slab-mode
+1. Configure the Effective Index settings carefully, especially slab-mode
    position, polarization or explicit mode selection, and bandwidth model.
-5. Inspect the generated effective materials using test points or an effective
+1. Inspect the generated effective materials using test points or an effective
    index monitor before relying on the setup.
-6. Add supported sources and the monitors needed for field, power, or
+1. Add supported sources and the monitors needed for field, power, or
    mode-expansion analysis.
-7. Save the setup file and ask before running.
-8. Validate the setup with convergence checks and effective-material sanity
+1. Save the setup file and ask before running.
+1. Validate the setup with convergence checks and effective-material sanity
    checks before trusting production results.
 
 ## Effective Index Settings
@@ -152,6 +152,6 @@ discarding results is acceptable.
 
 ## See Also
 
-Use ``mode_fde_workflow`` and ``mode_fde_results`` when the task is still at
+Use `mode_fde_workflow` and `mode_fde_results` when the task is still at
 the cross-sectional design stage. Use FDTD topics only when the user needs full
 3D simulation rather than the MODE varFDTD approximation.

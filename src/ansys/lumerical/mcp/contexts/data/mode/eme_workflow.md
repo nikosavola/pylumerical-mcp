@@ -4,8 +4,8 @@ This topic covers the MODE Eigenmode Expansion (EME) workflow for taper,
 converter, and multi-section propagation devices: EME setup, cell-group
 configuration, analysis-mode propagation, and result interpretation.
 
-Read ``workflow`` first. Pair this topic with ``geometry`` and
-``materials`` for shared build conventions.
+Read `workflow` first. Pair this topic with `geometry` and
+`materials` for shared build conventions.
 
 ## When To Use EME
 
@@ -21,13 +21,13 @@ Prefer these stages as separate snippets:
 
 1. Parameters: wavelength, geometry, port intent, number of cell groups,
    group spans, cells per group, and modes per group.
-2. Add geometry.
-3. Add the EME object.
-4. Configure the EME setup in layout mode.
-5. Save the setup file.
-6. Ask before the mode-calculation / propagation step.
-7. After the user confirms, run the EME calculation to enter analysis mode.
-8. In analysis mode, use ``emepropagate()`` / ``emesweep()`` and extract
+1. Add geometry.
+1. Add the EME object.
+1. Configure the EME setup in layout mode.
+1. Save the setup file.
+1. Ask before the mode-calculation / propagation step.
+1. After the user confirms, run the EME calculation to enter analysis mode.
+1. In analysis mode, use `emepropagate()` / `emesweep()` and extract
    the user S-matrix or other requested results.
 
 ## Layout Mode Versus Analysis Mode
@@ -36,36 +36,36 @@ This is the most important EME rule.
 
 - In layout mode, configure geometry, ports, and cell groups.
 - Running the EME calculation moves the project into analysis mode.
-- ``emepropagate()`` and propagation sweeps belong to analysis mode.
+- `emepropagate()` and propagation sweeps belong to analysis mode.
 - Geometry and most object edits are blocked in analysis mode.
 
 If you need to modify ports, geometry, or solver setup after a run, call
-``switchtolayout()`` only after the user confirms that existing analysis
+`switchtolayout()` only after the user confirms that existing analysis
 results may be discarded.
 
 ## Cell Groups And Group Spans
 
 The longitudinal extent is controlled by cell-group settings, not by
-assuming a direct ``x span`` edit on the EME solver object in every state.
+assuming a direct `x span` edit on the EME solver object in every state.
 
 Common setup keys include:
 
-- ``number of cell groups``
-- ``group spans``
-- ``cells``
-- ``number of modes for all cell groups``
-- ``allow custom eigensolver settings`` when group-specific settings are
+- `number of cell groups`
+- `group spans`
+- `cells`
+- `number of modes for all cell groups`
+- `allow custom eigensolver settings` when group-specific settings are
   required
 
-For ``group spans`` and ``cells``, do not assume plain Python lists are the
+For `group spans` and `cells`, do not assume plain Python lists are the
 accepted payload. MODE commonly expects matrix-shaped values. When a list is
 rejected, switch to the matrix format that the live object accepts.
 
 ## Coordinate Updates And Alignment
 
 When changing EME longitudinal spans, do not assume the solver center stays
-fixed. Updating ``group spans`` can shift the region center. If the device
-must stay centered, explicitly re-apply the intended ``x`` position after
+fixed. Updating `group spans` can shift the region center. If the device
+must stay centered, explicitly re-apply the intended `x` position after
 the span update and verify the final bounds.
 
 This matters for taper-length sweeps: set the span-defining properties
@@ -80,14 +80,14 @@ live session and leave extra enabled ports behind.
 Before reporting port-to-port transmission:
 
 1. verify the expected port count
-2. verify which modes are enabled at each port
-3. remove unintended ports in layout mode if necessary
-4. rerun the EME calculation before trusting the user S-matrix
+1. verify which modes are enabled at each port
+1. remove unintended ports in layout mode if necessary
+1. rerun the EME calculation before trusting the user S-matrix
 
 ## Propagation And Sweeps
 
-Use ``emepropagate()`` for the current analysis configuration. Use
-``emesweep()`` for propagation-length or wavelength sweeps after the EME
+Use `emepropagate()` for the current analysis configuration. Use
+`emesweep()` for propagation-length or wavelength sweeps after the EME
 mode solve has been performed.
 
 Keep in mind:
@@ -102,26 +102,26 @@ Keep in mind:
 
 The key EME analysis commands the agent should know are:
 
-- ``setemeanalysis("property", value)`` to configure the EME analysis
+- `setemeanalysis("property", value)` to configure the EME analysis
   window in analysis mode
-- ``getemeanalysis("property")`` to inspect the current EME analysis
+- `getemeanalysis("property")` to inspect the current EME analysis
   settings before changing or using them
-- ``emepropagate()`` to run the current propagation analysis
-- ``emesweep()`` or ``emesweep("...")`` to run a configured sweep
-- ``getemesweep("...")`` to retrieve sweep datasets
-- ``exportemesweep("filename", "format")`` to export wavelength-sweep
+- `emepropagate()` to run the current propagation analysis
+- `emesweep()` or `emesweep("...")` to run a configured sweep
+- `getemesweep("...")` to retrieve sweep datasets
+- `exportemesweep("filename", "format")` to export wavelength-sweep
   data for downstream use, including INTERCONNECT
 
 If the valid analysis-window properties are unclear, discover them first
 instead of guessing. In lumapi Python, use explicit getters/setters such as
-``mode.getemeanalysis("group spans")`` and
-``mode.setemeanalysis("group spans", value)``.
+`mode.getemeanalysis("group spans")` and
+`mode.setemeanalysis("group spans", value)`.
 
 Supported EME sweep modes include:
 
-- ``emesweep()`` or ``emesweep("propagation sweep")``
-- ``emesweep("wavelength sweep")``
-- ``emesweep("mode convergence sweep")``
+- `emesweep()` or `emesweep("propagation sweep")`
+- `emesweep("wavelength sweep")`
+- `emesweep("mode convergence sweep")`
 
 ## Python Examples
 
@@ -186,18 +186,18 @@ _lum_print_json(dataset)
 
 Keep these mode-specific distinctions in mind:
 
-- ``emepropagate()`` is for the current propagated analysis state, not for
+- `emepropagate()` is for the current propagated analysis state, not for
   parameter sweeps
 - propagation, wavelength, and mode-convergence sweeps are configured with
-  ``setemeanalysis(...)`` and run with ``emesweep(...)``
-- wavelength-sweep export uses ``exportemesweep(...)`` and applies to the
+  `setemeanalysis(...)` and run with `emesweep(...)`
+- wavelength-sweep export uses `exportemesweep(...)` and applies to the
   EME analysis wavelength sweep result
 
 ## Results To Prefer
 
 The most decision-useful result for a taper or converter is typically the
-``user s matrix`` or ``power normalized user s matrix`` after confirming the
-port configuration. Do not assume that overlap, ``Pmatrix``, or other
+`user s matrix` or `power normalized user s matrix` after confirming the
+port configuration. Do not assume that overlap, `Pmatrix`, or other
 normalized helper results are the correct loss metric for every task.
 
 Always inspect the returned result payload before indexing into it, and say
@@ -213,7 +213,7 @@ production run.
 
 ## See Also
 
-Use ``s_parameter_sweep`` when the task is the formal S-parameter matrix
-sweep utility shared by FDTD and MODE. Use ``mode_fde_workflow`` and
-``mode_fde_results`` for cross-sectional mode solving rather than device
+Use `s_parameter_sweep` when the task is the formal S-parameter matrix
+sweep utility shared by FDTD and MODE. Use `mode_fde_workflow` and
+`mode_fde_results` for cross-sectional mode solving rather than device
 propagation.

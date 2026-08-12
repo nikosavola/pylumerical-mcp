@@ -1,16 +1,16 @@
 # Geometry
 
 This topic covers the dictionary-based syntax used to add layout
-objects (``addrect``, ``addcircle``, ``addsphere``, ``addring``,
-``addpoly``, ``addgroup``, ...) in Lumerical. **FDTD**, **MODE**, and
+objects (`addrect`, `addcircle`, `addsphere`, `addring`,
+`addpoly`, `addgroup`, ...) in Lumerical. **FDTD**, **MODE**, and
 **DEVICE** use the same lumapi calls and the same dictionary form;
-substitute the appropriate handle name (``fdtd``, ``mode``, ``device``)
+substitute the appropriate handle name (`fdtd`, `mode`, `device`)
 for the snippets below.
 
 ## Use Dictionary-Based Object Creation
 
-When adding objects, pass a single dict to the ``addX`` call instead
-of issuing sequential ``set()`` calls. The dict form is more concise,
+When adding objects, pass a single dict to the `addX` call instead
+of issuing sequential `set()` calls. The dict form is more concise,
 easier to read, and faster for the agent to generate correctly.
 
 ### Preferred (dictionary-based)
@@ -26,18 +26,18 @@ fdtd.addrect({
 ```
 
 The same dict-form rule applies to every layout-object constructor
-(``addcircle``, ``addsphere``, ``addring``, ``addpoly``,
-``addgroup``, ``addimport``, ...) and to MODE and DEVICE handles
-(``mode.addrect({...})`` or ``device.addrect({...})``).
+(`addcircle`, `addsphere`, `addring`, `addpoly`,
+`addgroup`, `addimport`, ...) and to MODE and DEVICE handles
+(`mode.addrect({...})` or `device.addrect({...})`).
 
 ## Property-Name Conventions
 
 Property keys passed in the dict use the **lumapi string names** with
-spaces preserved -- ``"x span"``, ``"z min"``, ``"mesh order"``,
-``"first axis"``, ``"rotation 1"``. Do **not** convert them to
-Python identifiers (``"x_span"`` will be silently ignored). When in
+spaces preserved -- `"x span"`, `"z min"`, `"mesh order"`,
+`"first axis"`, `"rotation 1"`. Do **not** convert them to
+Python identifiers (`"x_span"` will be silently ignored). When in
 doubt, dump the object's properties with
-``_lum_print_json(fdtd.getnamed("<name>"))`` to see the exact key
+`_lum_print_json(fdtd.getnamed("<name>"))` to see the exact key
 spellings the live session expects.
 
 ## GDS and Process-File Workflows
@@ -48,46 +48,46 @@ from raw polygons.
 
 - Treat the lithographic pattern as an **XY-plane** layout.
 - Treat thickness, etch depth, and stack build-up as the **Z-axis** part
-    of the model.
+  of the model.
 - Do not invent layer-to-material, layer-to-thickness, or etch mappings
-    if the GDS layer map or process file is incomplete.
+  if the GDS layer map or process file is incomplete.
 
 A Layer Builder can be added and configured fully from script.
 
 ### Add a Layer Builder Object
 
-Use ``addlayerbuilder`` to create the Layer Builder object in the active
+Use `addlayerbuilder` to create the Layer Builder object in the active
 simulation.
 
 ### Pattern Geometry
 
-- ``loadgdsfile`` loads GDS geometry into the Layer Builder object.
-- ``getcelllist`` and ``getlayerlist`` return the available cells and
-    layers from the loaded GDS.
-- ``savegdsfile`` exports the Layer Builder pattern geometry back to GDS.
-- ``set`` / ``setnamed`` and ``get`` / ``getnamed`` can write or inspect
-    polygon vertices through the ``"geometry"`` property.
+- `loadgdsfile` loads GDS geometry into the Layer Builder object.
+- `getcelllist` and `getlayerlist` return the available cells and
+  layers from the loaded GDS.
+- `savegdsfile` exports the Layer Builder pattern geometry back to GDS.
+- `set` / `setnamed` and `get` / `getnamed` can write or inspect
+  polygon vertices through the `"geometry"` property.
 
 ### Process Layers
 
 There are two valid setup patterns:
 
-- Build layers from scratch with ``addlayer``, then configure them with
-    ``setlayer`` and inspect them with ``getlayer``.
-- Load the full stack from a process file with ``loadprocessfile`` and
-    export it with ``saveprocessfile``.
+- Build layers from scratch with `addlayer`, then configure them with
+  `setlayer` and inspect them with `getlayer`.
+- Load the full stack from a process file with `loadprocessfile` and
+  export it with `saveprocessfile`.
 
-In addition to the normal process-layer properties, ``setlayer`` can also
-override graphical opacity with ``"pattern alpha"`` and
-``"background alpha"``.
+In addition to the normal process-layer properties, `setlayer` can also
+override graphical opacity with `"pattern alpha"` and
+`"background alpha"`.
 
 ### Rotation and Background
 
-- Access Layer Builder rotation with normal ``set`` / ``setnamed`` calls.
-    The only axis property you should set is ``"first axis"``, and its only
-    valid value is ``"z"``.
-- Access background geometry with normal ``set`` / ``setnamed`` and
-    ``get`` / ``getnamed`` calls on the Layer Builder object.
+- Access Layer Builder rotation with normal `set` / `setnamed` calls.
+  The only axis property you should set is `"first axis"`, and its only
+  valid value is `"z"`.
+- Access background geometry with normal `set` / `setnamed` and
+  `get` / `getnamed` calls on the Layer Builder object.
 
 Prefer Layer Builder when the workflow is fundamentally a process-driven
 layout plus stack definition. Prefer manual geometry objects only when the

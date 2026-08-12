@@ -61,3 +61,13 @@ repos:
       - id: typos
         args: ["--config", "doc/styles/typos.toml"]
         exclude: "(^doc/styles/config/vocabularies)|(^.github/labels.yml$)"
+
+  # Markdown formatting
+  - repo: https://github.com/hukkin/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm
+          - mdformat-gfm-alerts
+        exclude: ^doc/changelog\.d/

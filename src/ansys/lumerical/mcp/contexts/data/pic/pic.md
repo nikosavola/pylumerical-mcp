@@ -3,10 +3,10 @@
 This topic covers shared guided-wave photonic simulation rules for
 optical elements such as waveguides, bends, couplers, tapers, and
 fiber-coupled structures. It is meant to complement solver-specific
-topics such as ``fdtd_workflow``, ``mode_fde_workflow``,
-``mode_eme_workflow``, and ``mode_varfdtd_workflow``.
+topics such as `fdtd_workflow`, `mode_fde_workflow`,
+`mode_eme_workflow`, and `mode_varfdtd_workflow`.
 
-Read ``workflow`` first for the generic MCP execution model. Fetch this
+Read `workflow` first for the generic MCP execution model. Fetch this
 topic whenever the task is an optical simulation of a photonic element
 using FDTD, MODE, or FEEM.
 
@@ -31,7 +31,7 @@ interior simulation region.
 
 For FDTD ports, EME ports, varFDTD ports, FDE solver regions, and FEEM
 mode-solver windows, the solver cross-section should typically extend
-about ``0.5`` to ``1`` times the simulation wavelength beyond the edge
+about `0.5` to `1` times the simulation wavelength beyond the edge
 of the geometry that confines the optical mode.
 
 - Use the optical confinement boundary, such as the waveguide core or
@@ -61,6 +61,6 @@ explicitly intends a substrate mode.
   or explicitly select the mode family that belongs to the main
   waveguide.
 
-See also: ``workflow``, ``geometry``, ``fdtd_workflow``,
-``mode_fde_workflow``, ``mode_fde_results``, ``mode_eme_workflow``,
-``mode_varfdtd_workflow``.
+See also: `workflow`, `geometry`, `fdtd_workflow`,
+`mode_fde_workflow`, `mode_fde_results`, `mode_eme_workflow`,
+`mode_varfdtd_workflow`.

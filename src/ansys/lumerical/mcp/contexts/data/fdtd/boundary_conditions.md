@@ -5,7 +5,7 @@ the FDTD solver: **PML** (absorbing, open boundaries), **symmetric
 / anti-symmetric** (mirror-plane speed-up), **periodic** (unit-cell
 simulation under normal incidence), and **Bloch** (unit-cell under
 angled / phase-shifted excitation). PML-extension geometry rules
-live in ``fdtd_workflow``; this topic explains how to pick the
+live in `fdtd_workflow`; this topic explains how to pick the
 right BC and its key sub-options.
 
 ## PML (absorbing, open boundaries)
@@ -29,13 +29,13 @@ predefined PML **profiles** (set on the Boundary Conditions tab):
   profiles fail.
 
 PML profiles can be set **per-boundary**: uncheck
-``"same settings on all boundaries"`` on the FDTD solver object,
-then only the offending boundary needs the heavier ``stabilized``
+`"same settings on all boundaries"` on the FDTD solver object,
+then only the offending boundary needs the heavier `stabilized`
 profile. This avoids paying the layer-count cost on every face.
 
 Increasing the layer count lowers reflection on any profile;
 diverging or noisy simulations are often fixed by switching to
-``stabilized`` or raising the layer count on a single boundary.
+`stabilized` or raising the layer count on a single boundary.
 
 ## Symmetric / Anti-Symmetric (mirror-plane speed-up)
 
@@ -46,10 +46,10 @@ Each plane gives a 2x speed-up (4x or 8x for multiple symmetries).
 Picking the right one is **source-driven**, not just structure-
 driven:
 
-- ``"symmetric"`` -- the source's **electric field polarisation is
+- `"symmetric"` -- the source's **electric field polarisation is
   tangential** to the symmetry plane (Lumerical colour code: blue
   arrow along the blue BC face).
-- ``"anti-symmetric"`` -- the electric polarisation is **normal**
+- `"anti-symmetric"` -- the electric polarisation is **normal**
   to the plane (blue arrow into the green BC face).
 
 Common gotchas:
@@ -60,14 +60,14 @@ Common gotchas:
 - **Do not shrink the sim region manually**; the GUI greys out the
   half that won't be simulated. In a script just set the BC and
   leave the span alone -- the solver handles unfolding.
-- ``getdata`` / ``getelectric`` / ``getmagnetic`` auto-unfold the
+- `getdata` / `getelectric` / `getmagnetic` auto-unfold the
   fields back to the full region; monitors entirely inside the
   greyed half record no data.
 
 ## Periodic (unit-cell, normal incidence)
 
 For genuinely periodic structures excited at normal incidence,
-set the lateral BCs to ``"periodic"`` and draw exactly one unit
+set the lateral BCs to `"periodic"` and draw exactly one unit
 cell. The solver simply copies the field at one face to the
 opposite face.
 
@@ -83,24 +83,24 @@ in the one-mesh-cell BC region is correct.
 ## Bloch (unit-cell, angled / phase-shifted excitation)
 
 Bloch BCs generalise periodic by applying a phase correction
-``exp(-i k_bloch * a)`` between opposite faces. Use them for:
+`exp(-i k_bloch * a)` between opposite faces. Use them for:
 
 - **Periodic structures under angled plane-wave illumination**
   (gratings, metasurfaces, angle-of-incidence sweeps).
-- **Bandstructure** calculations, where ``kx`` / ``ky`` / ``kz`` is
+- **Bandstructure** calculations, where `kx` / `ky` / `kz` is
   swept manually.
 
 Key flags and costs:
 
-- ``"set based on source angle"`` is on by default and computes the
+- `"set based on source angle"` is on by default and computes the
   Bloch vector from the plane-wave source's angle. Disable it only
-  for bandstructure work where ``kx`` is set manually.
+  for bandstructure work where `kx` is set manually.
 - Bloch uses **complex-valued time-domain fields**, so memory and
   runtime can roughly double, and time-domain field / movie
   monitors record complex values (take the real part if needed).
 - For **broadband angled** sweeps, the ordinary plane-wave + Bloch
   combination has a frequency-dependent angle; switch to the
-  ``BFAST`` source instead (BFAST manages BCs internally and
+  `BFAST` source instead (BFAST manages BCs internally and
   overrides Bloch).
 
 ## Choosing the Right BC at a Glance
@@ -109,11 +109,11 @@ Key flags and costs:
 - Symmetric structure + suitably polarised source -> add symmetric
   or anti-symmetric on the mirror plane (one per plane).
 - Infinite periodic array, normal incidence -> periodic on lateral
-  faces + PML on top/bottom (use ``steep angle`` PML).
+  faces + PML on top/bottom (use `steep angle` PML).
 - Infinite periodic array, angled incidence (single freq) ->
   Bloch on lateral faces + PML on top/bottom.
 - Infinite periodic array, broadband angled incidence -> BFAST
   source (its built-in BCs replace Bloch).
 
-See also: ``fdtd_workflow``, ``fdtd_sources_monitors``,
-``fdtd_run_and_results``.
+See also: `fdtd_workflow`, `fdtd_sources_monitors`,
+`fdtd_run_and_results`.

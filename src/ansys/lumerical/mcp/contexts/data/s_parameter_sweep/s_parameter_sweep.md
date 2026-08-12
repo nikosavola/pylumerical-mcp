@@ -1,24 +1,24 @@
 # S-Parameter Matrix Sweep (FDTD and MODE)
 
-A single ``<handle>.run()`` only excites the one source port, so
-its per-port ``"S"`` datasets give you one column of the S-matrix
+A single `<handle>.run()` only excites the one source port, so
+its per-port `"S"` datasets give you one column of the S-matrix
 -- never the full N x N matrix. For multi-port devices (Y-branch,
 MZI, directional coupler, ring resonator, ...) the full matrix
-comes from the **S-parameter matrix sweep** (``addsweep(3)``),
+comes from the **S-parameter matrix sweep** (`addsweep(3)`),
 which launches N simulations (one per active source row) and
 assembles the matrix from their per-port results. The same tool
 is available in MODE with the EME solver.
 
 ## Prereqs
 
-- ``sweeps`` -- generic sweep lifecycle, ``deletesweep``
+- `sweeps` -- generic sweep lifecycle, `deletesweep`
   idempotent rebuild pattern, dict-as-struct convention,
   discovery primitives.
-- ``fdtd_run_and_results`` -- the dataset-is-a-dict contract that
-  ``getsweepresult`` shares with ``getresult``.
+- `fdtd_run_and_results` -- the dataset-is-a-dict contract that
+  `getsweepresult` shares with `getresult`.
 
-The snippets below use the ``fdtd`` handle name for brevity; the
-``mode`` handle works identically (substitute the appropriate
+The snippets below use the `fdtd` handle name for brevity; the
+`mode` handle works identically (substitute the appropriate
 name).
 
 ## When to Use the Sweep
@@ -33,32 +33,29 @@ name).
   command.
 
 If the user only needs one S-parameter (e.g. just S21 of a
-straight waveguide), a single ``fdtd.run()`` plus per-port
-``getresult("FDTD::ports::output", "S")`` is enough -- the sweep
+straight waveguide), a single `fdtd.run()` plus per-port
+`getresult("FDTD::ports::output", "S")` is enough -- the sweep
 is overkill.
 
 ## FDTD vs. MODE Property Differences
 
-Both flavours are created with ``addsweep(3)``; the editable
+Both flavours are created with `addsweep(3)`; the editable
 properties on the resulting task differ. Discover the live set
-with ``?setsweep("s-parameter sweep");``.
+with `?setsweep("s-parameter sweep");`.
 
-- **FDTD**: ``name``, ``excite all ports``, ``calculate group
-  delay``, ``invert sign``, ``map from``, ``active``, ``port``,
-  ``mode``, ``map vector``, ``auto symmetry``, ``export setup``.
+- **FDTD**: `name`, `excite all ports`, `calculate group delay`, `invert sign`, `map from`, `active`, `port`,
+  `mode`, `map vector`, `auto symmetry`, `export setup`.
   The sweep launches one simulation per active row in the
   S-matrix setup table.
-- **MODE / EME**: ``name``, ``number of points``, ``calculate
-  group delay``, ``group delay wavelength``, ``parameter label``,
-  ``start wavelength``, ``stop wavelength``, ``include group
-  delay``. The sweep is over wavelength; one EME solve per
+- **MODE / EME**: `name`, `number of points`, `calculate group delay`, `group delay wavelength`, `parameter label`,
+  `start wavelength`, `stop wavelength`, `include group delay`. The sweep is over wavelength; one EME solve per
   wavelength point yields all S-matrix entries simultaneously.
 
 ## Setup, Run, Collect
 
 The sweep is a layout-time analysis task that lives alongside the
 ports group in the project file. Run it **after** the ports have
-been added and the project saved, and **before** ``fdtd.run()`` --
+been added and the project saved, and **before** `fdtd.run()` --
 the sweep launches its own simulations.
 
 ```python
@@ -74,45 +71,44 @@ _lum_print_json({"stage": "s_parameter_sweep", "ok": True})
 
 Notes:
 
-- ``addsweep(3)`` is the matrix-sweep flavour; the task is named
-  ``"s-parameter sweep"`` by default.
-- With ``"Excite all ports" = true`` the table auto-populates
+- `addsweep(3)` is the matrix-sweep flavour; the task is named
+  `"s-parameter sweep"` by default.
+- With `"Excite all ports" = true` the table auto-populates
   with every (port, mode) pair and launches one simulation per
   row.
-- For symmetric devices, set ``"auto symmetry" = true`` instead
+- For symmetric devices, set `"auto symmetry" = true` instead
   -- this halves the simulation count (see the Y-branch example
   below).
-- ``runsweep`` blocks until every child simulation finishes, so
+- `runsweep` blocks until every child simulation finishes, so
   the tool-call lock is held for the full duration. Warn the
   user about the expected wall-clock cost before kicking it off.
-- The sweep does its own ``run`` internally; do **not** call
-  ``fdtd.run()`` afterwards for the same project.
+- The sweep does its own `run` internally; do **not** call
+  `fdtd.run()` afterwards for the same project.
 
 ## Available Results
 
-After ``runsweep`` returns, the matrix lives on the sweep task
-(not on the FDTD root). Use ``fdtd.getsweepresult`` (not
-``fdtd.getresult``). The shipped results are:
+After `runsweep` returns, the matrix lives on the sweep task
+(not on the FDTD root). Use `fdtd.getsweepresult` (not
+`fdtd.getresult`). The shipped results are:
 
-- ``"S matrix"`` -- dataset whose ``"S"`` attribute is a
-  ``complex128`` ndarray of shape ``(N_freq, N_ports, N_ports)``.
+- `"S matrix"` -- dataset whose `"S"` attribute is a
+  `complex128` ndarray of shape `(N_freq, N_ports, N_ports)`.
   This **is** the full matrix, in contrast to the per-port
-  ``(N_freq, N_modes)`` shape on ``FDTD::ports::<port>``.
-- ``"S parameters"`` -- per-element dataset (``S11``, ``S12``,
-  ..., ``SNN``), each a complex array vs. frequency.
-- ``"S diagnostic"`` -- passivity and reciprocity violation vs.
+  `(N_freq, N_modes)` shape on `FDTD::ports::<port>`.
+- `"S parameters"` -- per-element dataset (`S11`, `S12`,
+  ..., `SNN`), each a complex array vs. frequency.
+- `"S diagnostic"` -- passivity and reciprocity violation vs.
   frequency.
-- ``"group delay"`` -- only present if ``"calculate group
-  delay"`` was enabled.
+- `"group delay"` -- only present if `"calculate group delay"` was enabled.
 
-Always dump first, then index (see ``fdtd_run_and_results``).
+Always dump first, then index (see `fdtd_run_and_results`).
 
 ## Worked Y-Branch Example
 
 A 3-port symmetric Y-branch with fundamental TE and TM modes at
 each port has 6 rows in the S-matrix setup table. Symmetry maps
 the two output ports onto one another, so only 4 simulations are
-actually needed -- ``"auto symmetry" = true`` configures the
+actually needed -- `"auto symmetry" = true` configures the
 mapping automatically.
 
 ```python
@@ -161,9 +157,9 @@ _lum_print_json({
 
 ## Touchstone / INTERCONNECT Export
 
-The same sweep task writes a ``.dat`` (Lumerical / INTERCONNECT)
-or Touchstone file via ``exportsweep``. Do this **after**
-``runsweep`` so the export sees populated data:
+The same sweep task writes a `.dat` (Lumerical / INTERCONNECT)
+or Touchstone file via `exportsweep`. Do this **after**
+`runsweep` so the export sees populated data:
 
 ```python
 fdtd = _lum_get("ybranch")
@@ -172,7 +168,7 @@ _lum_print_json({"exported": "/tmp/ybranch.dat"})
 ```
 
 For phase-sensitive INTERCONNECT circuits, enable
-``"calculate group delay"`` on the sweep before ``runsweep``;
+`"calculate group delay"` on the sweep before `runsweep`;
 the exported file will include the group-delay header that the
 Optical N-Port S-Parameter element's group-delay filter option
 expects.
@@ -180,19 +176,19 @@ expects.
 ## Summary
 
 - The full N x N S-matrix is **not** available from a single
-  ``fdtd.run()``. Use the S-parameter matrix sweep.
-- Recipe: ``deletesweep`` / ``addsweep(3)`` / configure with
-  ``setsweep`` / ``runsweep`` / ``getsweepresult``.
-- The matrix-sweep ``"S"`` array has shape
-  ``(N_freq, N_ports, N_ports)`` -- in contrast to per-port
-  ``"S"`` at ``FDTD::ports::<port>`` which is
-  ``(N_freq, N_modes)``.
-- Use ``"auto symmetry" = true`` for symmetric devices to halve
+  `fdtd.run()`. Use the S-parameter matrix sweep.
+- Recipe: `deletesweep` / `addsweep(3)` / configure with
+  `setsweep` / `runsweep` / `getsweepresult`.
+- The matrix-sweep `"S"` array has shape
+  `(N_freq, N_ports, N_ports)` -- in contrast to per-port
+  `"S"` at `FDTD::ports::<port>` which is
+  `(N_freq, N_modes)`.
+- Use `"auto symmetry" = true` for symmetric devices to halve
   the simulation count; confirm port ordering by dumping the
-  ``"S matrix"`` dataset first.
-- The sweep does its own ``run`` internally; do not also call
-  ``fdtd.run()`` for the same project.
-- Use ``exportsweep`` for Touchstone / INTERCONNECT export.
+  `"S matrix"` dataset first.
+- The sweep does its own `run` internally; do not also call
+  `fdtd.run()` for the same project.
+- Use `exportsweep` for Touchstone / INTERCONNECT export.
 
-See also: ``sweeps``, ``fdtd_workflow``, ``fdtd_sources_monitors``,
-``fdtd_run_and_results``.
+See also: `sweeps`, `fdtd_workflow`, `fdtd_sources_monitors`,
+`fdtd_run_and_results`.

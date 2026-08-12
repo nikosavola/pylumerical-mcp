@@ -66,7 +66,9 @@ uv run ansys-lumerical-mcp
 ```
 
 #### Quick start with VS Code or Cursor
+
 If you're using the devopment container:
+
 ```jsonc
 {
 	"servers": {

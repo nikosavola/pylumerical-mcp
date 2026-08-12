@@ -1,30 +1,30 @@
 # FDTD Source Types
 
 This topic catalogues the FDTD source families beyond ports and
-mode sources (``fdtd_sources_monitors`` covers those). Pick the
+mode sources (`fdtd_sources_monitors` covers those). Pick the
 source that matches the physics, not the source you happen to
 know best.
 
 ## Decision Tree
 
 - **Guided mode** (waveguide cross-section, want S-parameters) ->
-  ``addport()`` (or ``addmode()`` if S-params not needed). See
-  ``fdtd_sources_monitors``.
+  `addport()` (or `addmode()` if S-params not needed). See
+  `fdtd_sources_monitors`.
 - **Plane wave at normal or fixed angle, single frequency** ->
-  ``addplane`` (planar wave source).
-- **Plane wave, broadband and angled** -> ``addbfastplanewave`` /
+  `addplane` (planar wave source).
+- **Plane wave, broadband and angled** -> `addbfastplanewave` /
   BFAST source -- the only correct broadband-angled source.
-- **Focused free-space beam (lens, fiber tip)** -> ``addgaussian``
+- **Focused free-space beam (lens, fiber tip)** -> `addgaussian`
   (paraxial) or the scalar/vector "thin lens" mode.
 - **Isolated scatterer cross-section** (RCS, absorption,
-  scattering efficiency) -> ``addtfsf`` (Total-Field
+  scattering efficiency) -> `addtfsf` (Total-Field
   Scattered-Field).
 - **Point emitter** (LED active region, Purcell factor, antenna) ->
-  ``adddipole``.
+  `adddipole`.
 - **Field profile recorded elsewhere or computed externally** ->
-  ``addimportedsource``.
+  `addimportedsource`.
 
-## Plane Wave (``addplane``)
+## Plane Wave (`addplane`)
 
 A finite-sized plane wave injected through one face of the sim
 region. Pair with periodic or Bloch lateral BCs for true
@@ -41,7 +41,7 @@ Gotchas:
   refracts to a different angle when combined with Bloch BCs).
   Use BFAST instead.
 
-## BFAST (``addbfastplanewave``)
+## BFAST (`addbfastplanewave`)
 
 Broadband Fixed Angle Source Technique. A specialised plane-wave
 source for broadband angled sweeps that internally enforces the
@@ -51,7 +51,7 @@ BFAST automatically overrides Bloch BCs on the lateral faces.
 Use BFAST whenever you need a transmission / reflection spectrum
 at an oblique angle of incidence.
 
-## Gaussian / Thin-lens beam (``addgaussian``)
+## Gaussian / Thin-lens beam (`addgaussian`)
 
 Focused beam with user-set waist radius and beam center. Paraxial
 form is the default; the "thin lens" option produces a more
@@ -60,7 +60,7 @@ accurate vector beam at high NA.
 Common applications: fiber-to-chip coupling efficiency, focused
 spot inside a metasurface, microscope illumination.
 
-## Dipole (``adddipole``)
+## Dipole (`adddipole`)
 
 Idealised electric or magnetic point dipole, optionally with a
 fixed polarisation vector. Required source for:
@@ -69,14 +69,14 @@ fixed polarisation vector. Required source for:
   orientation to integrate over the emissive layer).
 - **Purcell factor** vs free-space dipole.
 - **Antenna** input impedance and radiation pattern (combine with
-  far-field projection, see ``fdtd_far_field_and_grating``).
+  far-field projection, see `fdtd_far_field_and_grating`).
 
 In an inhomogeneous environment the dipole couples to nearby
 structure; always validate with a homogeneous-medium reference
 run (Lumerical KB: *Testing FDTD dipole sources in homogeneous
 materials*).
 
-## TFSF (``addtfsf``)
+## TFSF (`addtfsf`)
 
 Total-Field / Scattered-Field source: a closed box that injects a
 plane wave **inside** while subtracting the incident field
@@ -95,7 +95,7 @@ the box produce spurious scattered fields. The Lumerical KB
 includes a dedicated *Tips and best practices when using the FDTD
 TFSF source* article -- consult it for any non-trivial geometry.
 
-## Imported Source (``addimportedsource``)
+## Imported Source (`addimportedsource`)
 
 Injects a spatial field profile recorded by a monitor (typically
 from a smaller FDE / MODE simulation) or loaded from an external
@@ -113,11 +113,11 @@ mechanism for shaping the pulse temporal envelope.
 ## Source-Bandwidth and Global Settings
 
 Wavelength / frequency range and pulse length are controlled by
-``setglobalsource``. Per-source overrides are documented but rarely
-needed -- see ``fdtd_sources_monitors`` for the global vs.
+`setglobalsource`. Per-source overrides are documented but rarely
+needed -- see `fdtd_sources_monitors` for the global vs.
 per-source rules. For very-narrow-band or very-broadband sources,
-``setglobalsource("optimize for short pulse", False)`` improves
+`setglobalsource("optimize for short pulse", False)` improves
 spectral accuracy at the cost of a longer source signal.
 
-See also: ``fdtd_sources_monitors``, ``fdtd_boundary_conditions``,
-``fdtd_far_field_and_grating``, ``fdtd_workflow``.
+See also: `fdtd_sources_monitors`, `fdtd_boundary_conditions`,
+`fdtd_far_field_and_grating`, `fdtd_workflow`.
