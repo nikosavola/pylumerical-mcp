@@ -38,17 +38,13 @@ ff = fdtd.farfield3d("upper_hemisphere", freq_idx, n_pts)
 _lum_print_json({"farfield_shape": list(np.shape(ff))})
 ```
 
-# Warning: Do not try to get the farfield result using getresult()
-
-# it is not a dataset and will not be visible until after you run the projection command.
-
-# Always run the projection command first, then inspect the result with getresult()
-
-# If you try to get the farfield result before running the projection command,
-
-# the tool may go into a state where it waits for user input via the GUI
-
-# and does not respond to further commands until you click "OK" on the GUI prompt.
+> [!WARNING]
+> Do not try to get the farfield result using `getresult()`; it is not a dataset
+> and will not be visible until after you run the projection command. Always run
+> the projection command first, then inspect the result with `getresult()`. If
+> you try to get the farfield result before running the projection command, the
+> tool may go into a state where it waits for user input via the GUI and does
+> not respond to further commands until you click "OK" on the GUI prompt.
 
 Useful companions:
 

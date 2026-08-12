@@ -1,0 +1,16 @@
+# Configuration for markdownlint-cli2
+# See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md for rules
+
+config:
+  default: true
+
+  # Line length is not enforced; mdformat does not hard-wrap prose.
+  MD013: false
+
+  # The add-license-headers hook's template inserts two blank lines
+  # inside the license comment block.
+  MD012:
+    maximum: 2
+
+ignores:
+  - doc/changelog.d/**

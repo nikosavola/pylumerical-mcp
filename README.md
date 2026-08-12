@@ -71,14 +71,14 @@ If you're using the devopment container:
 
 ```jsonc
 {
-	"servers": {
-		"pylumerical-mcp": {
-			"type": "stdio",
-			"command": "/workspaces/pylumerical-mcp/.venv/bin/ansys-lumerical-mcp",
-			"args": []
-		}
-	},
-	"inputs": []
+  "servers": {
+    "pylumerical-mcp": {
+      "type": "stdio",
+      "command": "/workspaces/pylumerical-mcp/.venv/bin/ansys-lumerical-mcp",
+      "args": []
+    }
+  },
+  "inputs": []
 }
 ```
 
