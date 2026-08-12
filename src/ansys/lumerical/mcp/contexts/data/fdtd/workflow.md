@@ -1,15 +1,15 @@
 # FDTD Workflow (Build & Setup)
 
 This topic covers the FDTD-specific **build/setup** half of the
-chunked ``execute_python_code`` workflow: the FDTD stage list, the
+chunked `execute_python_code` workflow: the FDTD stage list, the
 PML boundary-extension rule, and the FDTD-flavoured disambiguation
 defaults. The matching **run + results** half (FDTD-specific
-``run()`` calling conventions, ``run()``-once / ``switchtolayout``
-rule, dataset-is-a-dict contract, ``getresult`` discovery) lives in
-``fdtd_run_and_results``.
+`run()` calling conventions, `run()`-once / `switchtolayout`
+rule, dataset-is-a-dict contract, `getresult` discovery) lives in
+`fdtd_run_and_results`.
 
-**Read ``workflow`` first** for the generic execution model
-(``_lum_get`` / ``_lum_print_json`` helpers), snippet structure,
+**Read `workflow` first** for the generic execution model
+(`_lum_get` / `_lum_print_json` helpers), snippet structure,
 parameter management, and the "do NOT make assumptions / do NOT
 invent or re-run" rules that apply to every Lumerical product.
 
@@ -17,12 +17,12 @@ invent or re-run" rules that apply to every Lumerical product.
 
 Apply only when the user's request is ambiguous; if any parameter
 is explicitly stated, follow the user. The product-agnostic
-SI-units default lives in ``workflow``.
+SI-units default lives in `workflow`.
 
 - **Geometry**: 3D unless the user explicitly asks for 2D.
 - **Boundary conditions**: PML on all open boundaries (see "PML
   Boundary Extension" below).
-- **Materials**: prefer built-in library entries (see ``materials``).
+- **Materials**: prefer built-in library entries (see `materials`).
 
 For **2D FDTD**, the simulation region is always **z-normal**, so the
 computational plane is **XY**. Do not invent an arbitrary 2D plane
@@ -40,7 +40,7 @@ reflections.
 
 Rules:
 
-- The FDTD solver setting ``"extend structure through PML"`` is
+- The FDTD solver setting `"extend structure through PML"` is
   **on by default**, which automatically extends any structure
   that touches the inner PML edge through the PML layer. The
   manual extension pattern below is what makes the structure
@@ -54,11 +54,11 @@ Rules:
 - **Calculate the extension from the simulation region span, not
   the nominal device dimension.** A 10 um waveguide inside a 12 um
   simulation region needs
-  ``x span = sim_x_span + 2 * pml_extension``, not
-  ``waveguide_length + 2 * pml_extension``.
+  `x span = sim_x_span + 2 * pml_extension`, not
+  `waveguide_length + 2 * pml_extension`.
 - Apply only to the "infinite" axes. The waveguide's transverse
   width is finite and must NOT be extended.
-- The exact ``pml_extension`` value is not critical; aim for
+- The exact `pml_extension` value is not critical; aim for
   something larger than the PML region thickness (which scales
   with PML-layer count and inversely with mesh size).
 
@@ -74,53 +74,53 @@ fdtd.addrect({               # waveguide: extended along x, finite in y/z
 })
 ```
 
-See ``fdtd_workflow_example`` Step 4 for a worked substrate +
-waveguide pair, and ``geometry`` for the dictionary-based ``addX``
+See `fdtd_workflow_example` Step 4 for a worked substrate +
+waveguide pair, and `geometry` for the dictionary-based `addX`
 syntax used here.
 
 ## FDTD Build Stages
 
-Following ``workflow``'s chunking principle, an FDTD build
-typically breaks into these stages -- one ``execute_python_code``
+Following `workflow`'s chunking principle, an FDTD build
+typically breaks into these stages -- one `execute_python_code`
 snippet each:
 
-1. **Open session** -- ``open_session`` MCP tool with
-   ``product="fdtd"``.
-2. **Parameters + simulation region** -- declare dimensions,
+1. **Open session** -- `open_session` MCP tool with
+   `product="fdtd"`.
+1. **Parameters + simulation region** -- declare dimensions,
    indices, wavelength, mesh accuracy, save path; call
-   ``fdtd.addfdtd(...)``.
-3. **Materials** -- only if custom materials are needed (see
-   ``materials``).
-4. **Geometry** -- substrate, waveguide, cladding, etc. See
-   ``geometry`` for the dict-form ``addX`` syntax and the PML
+   `fdtd.addfdtd(...)`.
+1. **Materials** -- only if custom materials are needed (see
+   `materials`).
+1. **Geometry** -- substrate, waveguide, cladding, etc. See
+   `geometry` for the dict-form `addX` syntax and the PML
    extension rule above.
-5. **Sources and monitors** -- ``setglobalsource`` /
-   ``setglobalmonitor``, ports vs. mode sources (see
-   ``fdtd_sources_monitors``).
-6. **Save** -- ``fdtd.save("<path>.fsp")``.
-7. **Pause for user confirmation, then run and extract.** Final
-   snippet calls ``fdtd.run()`` and pulls results via
-   ``_lum_print_json(fdtd.getresult(...))``. The full FDTD-specific
+1. **Sources and monitors** -- `setglobalsource` /
+   `setglobalmonitor`, ports vs. mode sources (see
+   `fdtd_sources_monitors`).
+1. **Save** -- `fdtd.save("<path>.fsp")`.
+1. **Pause for user confirmation, then run and extract.** Final
+   snippet calls `fdtd.run()` and pulls results via
+   `_lum_print_json(fdtd.getresult(...))`. The full FDTD-specific
    run + extraction guidance (solver / resource / GPU arguments,
    re-run rules, dataset-is-a-dict contract, the dump-before-index
-   pattern) lives in ``fdtd_run_and_results``.
+   pattern) lives in `fdtd_run_and_results`.
 
 ## Worked End-to-End Example
 
 A full step-by-step build (straight silicon waveguide with TE port
-S-parameter extraction) lives in ``fdtd_workflow_example``.
+S-parameter extraction) lives in `fdtd_workflow_example`.
 
 ## Summary
 
-- **Read ``workflow`` first** for the generic snippet / chunking /
+- **Read `workflow` first** for the generic snippet / chunking /
   do-not-assume / wait-for-confirmation-before-run rules and the
   SI-units default.
 - **Extend "infinite" structures past the sim region into the
   PML**, calculated from the sim region span (not the device
   dimension).
 - **Datasets are dicts**: always
-  ``_lum_print_json(<handle>.getresult(...))`` before indexing.
-  See ``fdtd_run_and_results``.
+  `_lum_print_json(<handle>.getresult(...))` before indexing.
+  See `fdtd_run_and_results`.
 
-See also: ``workflow``, ``fdtd_workflow_example``, ``materials``,
-``geometry``, ``fdtd_sources_monitors``, ``fdtd_run_and_results``.
+See also: `workflow`, `fdtd_workflow_example`, `materials`,
+`geometry`, `fdtd_sources_monitors`, `fdtd_run_and_results`.

@@ -2,8 +2,8 @@
 
 This topic covers simulation-region setup for HEAT, CHARGE, FEEM, and DGTD.
 
-Read ``workflow`` first for the generic execution model and do-not-assume
-rules, and ``device_workflow`` for the DEVICE-specific build stages.
+Read `workflow` first for the generic execution model and do-not-assume
+rules, and `device_workflow` for the DEVICE-specific build stages.
 
 ## What Matters For MCP Workflows
 
@@ -19,7 +19,7 @@ or background material.
 Define the region with explicit geometry and boundary intent:
 
 - choose dimension (2D or 3D) (Note that default is 2D Y-Normal)
-- set per-face boundary behavior (``Open``, ``Closed``, ``Shell``)
+- set per-face boundary behavior (`Open`, `Closed`, `Shell`)
 - set region extents explicitly (center + span or min/max)
 - set background material when using a fully closed domain
 
@@ -28,7 +28,7 @@ Do not infer domain extents from nearby solids. Set region geometry directly.
 ## Solver-To-Region Linkage
 
 Bind each solver to the intended region via the solver's
-``simulation region`` property:
+`simulation region` property:
 
 ```python
 device.setnamed("CHARGE", "simulation region", "CHARGE simulation region")
@@ -46,6 +46,6 @@ solver in the project.
 
 ## See Also
 
-``workflow`` for the generic execution model. ``device_materials`` for shared model-material
-creation and database discovery. ``device_workflow`` for HEAT / CHARGE / FEEM / DGTD solver
+`workflow` for the generic execution model. `device_materials` for shared model-material
+creation and database discovery. `device_workflow` for HEAT / CHARGE / FEEM / DGTD solver
 configuration, simulation region setup, boundary conditions, monitors, and results.

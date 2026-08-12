@@ -1,13 +1,13 @@
 # FDTD Workflow: Worked Example
 
 A complete, step-by-step build of a straight silicon waveguide with TE
-mode ports for S-parameter extraction. Read ``workflow`` and
-``fdtd_workflow`` first -- the example is the worked counterpart to
+mode ports for S-parameter extraction. Read `workflow` and
+`fdtd_workflow` first -- the example is the worked counterpart to
 those topics' rules, and it assumes you already understand the
-chunked ``execute_python_code`` model, the ``_lum_get`` /
-``_lum_print_json`` helpers, the "do NOT make assumptions" rules
-(all in ``workflow``), and the FDTD-specific PML extension rule and
-build-stage list (in ``fdtd_workflow``).
+chunked `execute_python_code` model, the `_lum_get` /
+`_lum_print_json` helpers, the "do NOT make assumptions" rules
+(all in `workflow`), and the FDTD-specific PML extension rule and
+build-stage list (in `fdtd_workflow`).
 
 ## User Request
 
@@ -20,45 +20,45 @@ before running."
 
 The user request above pins geometry, materials, wavelength, and the
 source/monitor strategy, but leaves several solver-side knobs
-implicit. Apply the ``workflow`` "Do NOT Make Assumptions" rules:
+implicit. Apply the `workflow` "Do NOT Make Assumptions" rules:
 for **this** request, that means explicitly confirming or asking
 about each of the following before issuing Step 1 -- do not silently
 bake in a default.
 
-- **Mesh accuracy** (integer 1-8 on ``addfdtd``). The Lumerical
+- **Mesh accuracy** (integer 1-8 on `addfdtd`). The Lumerical
   docs recommend **starting at 1-2** for a quick first run and
   raising it only as part of a convergence check; the FDTD solver
   reference defines accuracy 1 = 6 ppw, accuracy 2 = 10 ppw, and
   each step adds 4 ppw. Ask the user which accuracy they want
   rather than baking in an arbitrary "publication-grade" value.
-- **Save path** for the ``.fsp``: ask. If the user says "anywhere",
-  use ``/tmp/<session_name>.fsp`` (Linux/macOS) or
-  ``%TEMP%\<session_name>.fsp`` (Windows) and tell them.
+- **Save path** for the `.fsp`: ask. If the user says "anywhere",
+  use `/tmp/<session_name>.fsp` (Linux/macOS) or
+  `%TEMP%\<session_name>.fsp` (Windows) and tell them.
 - **Wavelength point count**: "simulate at 1550 nm" means a single
   point unless the user asks for a sweep.
-- **Air cladding**: the FDTD background defaults to ``n = 1``
+- **Air cladding**: the FDTD background defaults to `n = 1`
   (vacuum). Either substitute vacuum and say so, or add a custom
-  dielectric for air (see ``materials``) -- never substitute
+  dielectric for air (see `materials`) -- never substitute
   silently.
 
-The example below assumes the user confirmed ``mesh_accuracy = 2``
+The example below assumes the user confirmed `mesh_accuracy = 2`
 (a reasonable first-run value; raise for convergence testing) and
-provided ``save_path``. Both are bound as Python variables in
+provided `save_path`. Both are bound as Python variables in
 Step 2 so the choices live in one place.
 
 ## The Build
 
-Each ``execute_python_code`` snippet is one chunk in the build.
+Each `execute_python_code` snippet is one chunk in the build.
 
-**Step 1 -- open the session** (tool: ``open_session``).
-Do NOT pass ``hide`` -- only set it on explicit user request:
+**Step 1 -- open the session** (tool: `open_session`).
+Do NOT pass `hide` -- only set it on explicit user request:
 
 ```json
 {"name": "straight_wg", "product": "fdtd"}
 ```
 
 **Step 2 -- parameters and simulation region**
-(tool: ``execute_python_code``):
+(tool: `execute_python_code`):
 
 ```python
 fdtd = _lum_get("straight_wg")
@@ -97,7 +97,7 @@ _lum_print_json({"stage": "region", "ok": True,
 ```
 
 **Step 3 -- geometry, extended into the PML on the propagation axis**
-(see ``geometry`` for ``addX`` syntax and ``fdtd_workflow`` for the
+(see `geometry` for `addX` syntax and `fdtd_workflow` for the
 PML extension rule):
 
 ```python
@@ -123,7 +123,7 @@ _lum_print_json({"stage": "geometry", "ok": True})
 ```
 
 **Step 4 -- global source / monitor settings and ports**
-(see ``fdtd_sources_monitors`` for the port-direction convention):
+(see `fdtd_sources_monitors` for the port-direction convention):
 
 ```python
 fdtd = _lum_get("straight_wg")
@@ -168,7 +168,7 @@ fdtd.setnamed("FDTD::ports", "source mode", "mode 1")
 _lum_print_json({"stage": "ports", "ok": True})
 ```
 
-**Step 5 -- save**. ``save_path`` was bound during Step 2 from the
+**Step 5 -- save**. `save_path` was bound during Step 2 from the
 value the user confirmed at pre-flight, so the agent neither
 hard-codes a path here nor invents one:
 
@@ -182,14 +182,14 @@ _lum_print_json({"stage": "saved", "path": save_path,
 
 **Pause here and ask the user to confirm before running.**
 
-**Step 6 -- run and pull S-parameters.** ``run()`` is called exactly
+**Step 6 -- run and pull S-parameters.** `run()` is called exactly
 once; the call blocks until the simulation completes. The ports
 group itself is **not** a result provider, so we discover first
-(``fdtd.getresult()``) and then index per-port at
-``FDTD::ports::<port_name>``. See ``fdtd_run_and_results`` for the
-FDTD-specific ``run()`` calling conventions, the
+(`fdtd.getresult()`) and then index per-port at
+`FDTD::ports::<port_name>`. See `fdtd_run_and_results` for the
+FDTD-specific `run()` calling conventions, the
 dataset-is-a-dict contract, and the dump-before-index pattern, and
-``s_parameter_sweep`` if the user later wants the full N x N
+`s_parameter_sweep` if the user later wants the full N x N
 S-matrix.
 
 ```python
@@ -206,12 +206,12 @@ fdtd = _lum_get("straight_wg")
 _lum_print_json(fdtd.getresult("FDTD::ports::output_port", "S"))
 ```
 
-**Step 7 -- close the session** (tool: ``close_session``) when the
+**Step 7 -- close the session** (tool: `close_session`) when the
 results have been delivered:
 
 ```json
 {"name": "straight_wg"}
 ```
 
-See also: ``fdtd_workflow``, ``materials``, ``geometry``,
-``fdtd_sources_monitors``, ``fdtd_run_and_results``.
+See also: `fdtd_workflow`, `materials`, `geometry`,
+`fdtd_sources_monitors`, `fdtd_run_and_results`.

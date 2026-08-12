@@ -6,8 +6,7 @@ guide lives at `doc/source/getting_started/develop_pylumerical_mcp.rst`.
 ## Always run pre-commit before declaring work done
 
 This repo has quality gates that **must** pass: `ruff check`, `ruff format`,
-`mypy`, `bandit`, license headers, etc. Pytest alone is not enough — `ruff
-format` and `mypy` routinely catch issues the test suite cannot.
+`mypy`, `bandit`, license headers, etc. Pytest alone is not enough — `ruff format` and `mypy` routinely catch issues the test suite cannot.
 
 After **any** code change (source or tests), run:
 
